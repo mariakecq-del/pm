@@ -1,5471 +1,1203 @@
-import React, {
-  createContext,
-  useState,
-  useContext,
-  useEffect
-} from 'react';
-
+import React, { useState, useMemo } from 'react';
 import {
+  SafeAreaView,
   View,
   Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
   TextInput,
+  TouchableOpacity,
   ScrollView,
   Modal,
-  Alert,
-  ActivityIndicator
+  StyleSheet,
+  StatusBar,
+  Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-import {
-  NavigationContainer
-} from '@react-navigation/native';
-
-import {
-  createNativeStackNavigator
-} from '@react-navigation/native-stack';
-
-import {
-  createBottomTabNavigator
-} from '@react-navigation/bottom-tabs';
-
-import {
-  Ionicons
-} from '@expo/vector-icons';
-
-
-
-export const ScholarContext = createContext();
-
-
-// ==========================================================
-// CONFIGURAÇÃO DA API
-// ==========================================================
-//
-// IMPORTANTE:
-// Troque o IP abaixo pelo IP do computador onde está
-// instalado o XAMPP.
-//
-// Exemplo:
-// http://192.168.0.105/app_scholar_api
-
-
-const API_URL =
-  'http://192.168.0.105/app_scholar_api';
-
-
-
-const alunosTurma1 = [
-  'Lucas Almeida',
-  'Marcos Vinícius Rocha',
-  'Beatriz Monteiro',
-  'Gabriel Ferreira',
-  'Amanda Ribeiro',
-  'Rafael Cardoso',
-  'Juliana Martins',
-  'Pedro Henrique Souza',
-  'Camila Oliveira',
-  'Matheus Pereira',
-  'Larissa Mendes',
-  'Felipe Costa',
-  'Isabela Rodrigues',
-  'Gustavo Barbosa',
-  'Mariana Lopes',
-  'Diego Fernandes',
-  'Sofia Carvalho',
-  'Bruno Nascimento',
-  'Ana Beatriz Lima',
-  'Leonardo Teixeira',
-  'Letícia Moreira',
-  'Caio Martins',
-  'Vitória Alves',
-  'Henrique Gomes',
-  'Manuela Castro',
-  'João Victor Santos',
-  'Clara Azevedo',
-  'Nicolas Duarte',
-  'Laura Freitas',
-  'Enzo Martins'
-].map((nome, index) => ({
-  id: `t1_${index + 1}`,
-  nome,
-  ra: `202410${String(index + 1).padStart(2, '0')}`,
-  curso: 'Logistica',
-  turma: '1º Módulo A',
-  status: 'A'
-}));
-
-
-const alunosTurma2 = [
-  'Arthur Mendes',
-  'Bianca Ferreira',
-  'Carlos Eduardo Silva',
-  'Daniela Martins',
-  'Eduardo Lima',
-  'Fernanda Costa',
-  'Guilherme Rocha',
-  'Helena Souza',
-  'Igor Almeida',
-  'Júlia Fernandes',
-  'Kevin Rodrigues',
-  'Luana Barbosa',
-  'Miguel Cardoso',
-  'Natália Pereira',
-  'Otávio Monteiro',
-  'Paula Ribeiro',
-  'Renan Oliveira',
-  'Sara Carvalho',
-  'Thiago Mendes',
-  'Valentina Lopes',
-  'Wesley Santos',
-  'Yasmin Castro',
-  'Alexandre Moreira',
-  'Bruna Azevedo',
-  'Cauã Freitas',
-  'Débora Teixeira',
-  'Erick Nascimento',
-  'Flávia Duarte',
-  'Henrique Alves',
-  'Nicole Gomes'
-].map((nome, index) => ({
-  id: `t2_${index + 1}`,
-  nome,
-  ra: `202420${String(index + 1).padStart(2, '0')}`,
-  curso: 'Desenvolvimento de Sistemas',
-  turma: '2º Módulo A',
-  status: 'A'
-}));
-
-
-const alunosIniciais = [
-  ...alunosTurma1,
-  ...alunosTurma2
+// Definição das 14 tabelas do banco de dados
+const TABELAS = [
+  {
+    id: 'aluno',
+    nome: 'Aluno',
+    tabela: 'aluno',
+    icone: 'people',
+    cor: '#2563EB',
+    campos: [
+      { key: 'nome', label: 'Nome Completo', placeholder: 'Ex: Maria Silva', obrigatorio: true },
+      { key: 'matricula', label: 'Matrícula', placeholder: 'Ex: 2026001', obrigatorio: true },
+      { key: 'email', label: 'E-mail', placeholder: 'Ex: maria@escola.com' },
+      { key: 'data_nascimento', label: 'Data de Nascimento', placeholder: 'Ex: 15/05/2008' },
+      { key: 'status', label: 'Status', placeholder: 'Ex: Ativo' },
+    ],
+  },
+  {
+    id: 'aluno_responsavel',
+    nome: 'Aluno x Responsável',
+    tabela: 'aluno_responsavel',
+    icone: 'git-network',
+    cor: '#7C3AED',
+    campos: [
+      { key: 'aluno_nome', label: 'Nome do Aluno', placeholder: 'Ex: Maria Silva', obrigatorio: true },
+      { key: 'responsavel_nome', label: 'Nome do Responsável', placeholder: 'Ex: Carlos Silva', obrigatorio: true },
+      { key: 'parentesco', label: 'Parentesco', placeholder: 'Ex: Pai / Mãe / Tutor' },
+    ],
+  },
+  {
+    id: 'avaliacao',
+    nome: 'Avaliação',
+    tabela: 'avaliacao',
+    icone: 'document-text',
+    cor: '#0891B2',
+    campos: [
+      { key: 'titulo', label: 'Título da Avaliação', placeholder: 'Ex: Prova Bimestral 1', obrigatorio: true },
+      { key: 'disciplina', label: 'Disciplina', placeholder: 'Ex: Matemática', obrigatorio: true },
+      { key: 'data', label: 'Data', placeholder: 'Ex: 20/04/2026' },
+      { key: 'peso', label: 'Peso', placeholder: 'Ex: 10.0' },
+    ],
+  },
+  {
+    id: 'boletim',
+    nome: 'Boletim',
+    tabela: 'boletim',
+    icone: 'reader',
+    cor: '#059669',
+    campos: [
+      { key: 'aluno_nome', label: 'Aluno', placeholder: 'Ex: Maria Silva', obrigatorio: true },
+      { key: 'periodo', label: 'Período / Bimestre', placeholder: 'Ex: 1º Bimestre 2026', obrigatorio: true },
+      { key: 'media_geral', label: 'Média Geral', placeholder: 'Ex: 8.7' },
+      { key: 'situacao', label: 'Situação', placeholder: 'Ex: Aprovado' },
+    ],
+  },
+  {
+    id: 'coordenador',
+    nome: 'Coordenador',
+    tabela: 'coordenador',
+    icone: 'shield-checkmark',
+    cor: '#D97706',
+    campos: [
+      { key: 'nome', label: 'Nome do Coordenador', placeholder: 'Ex: Prof. Roberto Lima', obrigatorio: true },
+      { key: 'area', label: 'Área / Setor', placeholder: 'Ex: Ensino Médio', obrigatorio: true },
+      { key: 'email', label: 'E-mail', placeholder: 'Ex: roberto@escola.com' },
+      { key: 'telefone', label: 'Telefone', placeholder: 'Ex: (11) 99999-0000' },
+    ],
+  },
+  {
+    id: 'curso',
+    nome: 'Curso',
+    tabela: 'curso',
+    icone: 'school',
+    cor: '#4F46E5',
+    campos: [
+      { key: 'nome', label: 'Nome do Curso', placeholder: 'Ex: Ensino Médio Técnico', obrigatorio: true },
+      { key: 'carga_horaria', label: 'Carga Horária', placeholder: 'Ex: 1200h' },
+      { key: 'turno', label: 'Turno', placeholder: 'Ex: Matutino' },
+    ],
+  },
+  {
+    id: 'cursos',
+    nome: 'Cursos (Catálogo)',
+    tabela: 'cursos',
+    icone: 'library',
+    cor: '#6366F1',
+    campos: [
+      { key: 'titulo', label: 'Título do Curso', placeholder: 'Ex: Desenvolvimento de Sistemas', obrigatorio: true },
+      { key: 'modalidade', label: 'Modalidade', placeholder: 'Ex: Presencial / EAD', obrigatorio: true },
+      { key: 'duracao', label: 'Duração', placeholder: 'Ex: 3 Semestres' },
+      { key: 'vagas', label: 'Vagas', placeholder: 'Ex: 40' },
+    ],
+  },
+  {
+    id: 'disciplina',
+    nome: 'Disciplina',
+    tabela: 'disciplina',
+    icone: 'book',
+    cor: '#0D9488',
+    campos: [
+      { key: 'nome', label: 'Nome da Disciplina', placeholder: 'Ex: Banco de Dados', obrigatorio: true },
+      { key: 'codigo', label: 'Código', placeholder: 'Ex: BD-101', obrigatorio: true },
+      { key: 'carga_horaria', label: 'Carga Horária', placeholder: 'Ex: 80h' },
+      { key: 'professor', label: 'Professor Responsável', placeholder: 'Ex: Ana Paula' },
+    ],
+  },
+  {
+    id: 'frequencia',
+    nome: 'Frequência',
+    tabela: 'frequencia',
+    icone: 'calendar',
+    cor: '#E11D48',
+    campos: [
+      { key: 'aluno_nome', label: 'Aluno', placeholder: 'Ex: Maria Silva', obrigatorio: true },
+      { key: 'disciplina', label: 'Disciplina', placeholder: 'Ex: Banco de Dados', obrigatorio: true },
+      { key: 'data', label: 'Data da Aula', placeholder: 'Ex: 19/11/2026' },
+      { key: 'status', label: 'Presença', placeholder: 'Ex: Presente / Falta' },
+    ],
+  },
+  {
+    id: 'matricula',
+    nome: 'Matrícula',
+    tabela: 'matricula',
+    icone: 'id-card',
+    cor: '#2563EB',
+    campos: [
+      { key: 'numero', label: 'Nº da Matrícula', placeholder: 'Ex: MAT-2026-089', obrigatorio: true },
+      { key: 'aluno_nome', label: 'Aluno', placeholder: 'Ex: Maria Silva', obrigatorio: true },
+      { key: 'turma', label: 'Turma', placeholder: 'Ex: 3º Ano A' },
+      { key: 'data_matricula', label: 'Data', placeholder: 'Ex: 10/02/2026' },
+    ],
+  },
+  {
+    id: 'nota',
+    nome: 'Nota',
+    tabela: 'nota',
+    icone: 'ribbon',
+    cor: '#16A34A',
+    campos: [
+      { key: 'aluno_nome', label: 'Aluno', placeholder: 'Ex: Maria Silva', obrigatorio: true },
+      { key: 'avaliacao', label: 'Avaliação', placeholder: 'Ex: Prova Bimestral 1', obrigatorio: true },
+      { key: 'valor', label: 'Nota Obtida', placeholder: 'Ex: 9.5', obrigatorio: true },
+      { key: 'observacao', label: 'Observação', placeholder: 'Ex: Excelente desempenho' },
+    ],
+  },
+  {
+    id: 'professor',
+    nome: 'Professor',
+    tabela: 'professor',
+    icone: 'person-circle',
+    cor: '#9333EA',
+    campos: [
+      { key: 'nome', label: 'Nome do Professor', placeholder: 'Ex: Prof. Ana Paula', obrigatorio: true },
+      { key: 'especialidade', label: 'Especialidade', placeholder: 'Ex: Engenharia de Software', obrigatorio: true },
+      { key: 'email', label: 'E-mail', placeholder: 'Ex: ana@escola.com' },
+      { key: 'telefone', label: 'Telefone', placeholder: 'Ex: (11) 98888-1111' },
+    ],
+  },
+  {
+    id: 'responsavel',
+    nome: 'Responsável',
+    tabela: 'responsavel',
+    icone: 'heart',
+    cor: '#DB2777',
+    campos: [
+      { key: 'nome', label: 'Nome do Responsável', placeholder: 'Ex: Carlos Silva', obrigatorio: true },
+      { key: 'cpf', label: 'CPF', placeholder: 'Ex: 123.456.789-00' },
+      { key: 'telefone', label: 'Telefone', placeholder: 'Ex: (11) 97777-2222', obrigatorio: true },
+      { key: 'email', label: 'E-mail', placeholder: 'Ex: carlos@email.com' },
+    ],
+  },
+  {
+    id: 'turma',
+    nome: 'Turma',
+    tabela: 'turma',
+    icone: 'albums',
+    cor: '#EA580C',
+    campos: [
+      { key: 'nome', label: 'Nome da Turma', placeholder: 'Ex: 3º Ano A', obrigatorio: true },
+      { key: 'curso', label: 'Curso', placeholder: 'Ex: Desenvolvimento de Sistemas', obrigatorio: true },
+      { key: 'ano_letivo', label: 'Ano Letivo', placeholder: 'Ex: 2026' },
+      { key: 'sala', label: 'Sala', placeholder: 'Ex: Sala 12' },
+    ],
+  },
 ];
 
-
-const fetchComTimeout = async (
-  url,
-  options = {},
-  timeout = 4000
-) => {
-
-  const controller = new AbortController();
-
-  const timer = setTimeout(() => {
-    controller.abort();
-  }, timeout);
-
-  try {
-
-    return await fetch(url, {
-      ...options,
-      signal: controller.signal
-    });
-
-  } finally {
-
-    clearTimeout(timer);
-
-  }
-};
-
-export const ScholarProvider = ({
-  children
-}) => {
-
-
-
-  const [alunos, setAlunos] = useState(
-    alunosIniciais
-  );
-
-  const [
-    carregandoAlunos,
-    setCarregandoAlunos
-  ] = useState(false);
-
-  const [professores, setProfessores] = useState([
+// Dados iniciais baseados na imagem do seu banco (1 aluno + 2 cursos + exemplos)
+const DADOS_INICIAIS = {
+  aluno: [
     {
       id: '1',
-      nome: 'Carlos Eduardo Lima',
-      email: 'carlos@escola.com.br',
-      telefone: '(12) 99888-1111',
-      cpf: '111.222.333-44',
-      endereco: 'Rua das Flores, 123',
-      departamento: 'Exatas',
-      formacao: 'Ciência da Computação',
-      observacoes:
-        'Disponível no período matutino'
-    }
-  ]);
-
-
- 
-  const [
-    coordenadores,
-    setCoordenadores
-  ] = useState([
+      nome: 'Maria Eduarda Silva',
+      matricula: '2026001',
+      email: 'maria.silva@scholar.edu',
+      data_nascimento: '14/03/2008',
+      status: 'Ativo',
+    },
+  ],
+  aluno_responsavel: [],
+  avaliacao: [],
+  boletim: [],
+  coordenador: [],
+  curso: [],
+  cursos: [
     {
       id: '1',
-      nome: 'Mariana Duarte',
-      email: 'mariana@escola.com.br',
-      telefone: '(12) 98765-4321',
-      cpf: '555.666.777-88',
-      endereco: 'Av. Central, 456',
-      departamento: 'Pedagógico',
-      formacao: 'Pedagogia',
-      observacoes: 'Coordenadora Geral'
-    }
-  ]);
-
-
-
-  const [
-    responsaveis,
-    setResponsaveis
-  ] = useState([
-    {
-      id: '1',
-      nome: 'Roberto Souza',
-      email: 'roberto@gmail.com',
-      telefone: '(12) 99111-2222',
-      cpf: '999.888.777-66',
-      endereco: 'Rua São José, 78'
-    }
-  ]);
-
-
-
-  const [
-    matriculas,
-    setMatriculas
-  ] = useState([
-    {
-      id: '1',
-      numero: '20240001',
-      aluno: 'Ana Clara Souza',
-      curso: 'Logistica',
-      turma: '1º Módulo A'
-    }
-  ]);
-
-
-
-  const [turmas, setTurmas] = useState([
-    {
-      id: '1',
-      nome: '1º Módulo A',
-      curso: 'Logistica',
-      periodo: 'Manhã',
-      ano: '2024',
-      status: 'A'
+      titulo: 'Desenvolvimento de Sistemas',
+      modalidade: 'Presencial',
+      duracao: '3 Semestres',
+      vagas: '40',
     },
     {
       id: '2',
-      nome: '2º Módulo A',
-      curso: 'Desenvolvimento de Sistemas',
-      periodo: 'Tarde',
-      ano: '2024',
-      status: 'A'
-    }
-  ]);
-
-
-
-  const [cursos, setCursos] = useState([
-    {
-      id: '1',
-      nome: 'Logistica',
-      area: 'Logistica',
-      duracao: '3 anos',
-      status: 'A'
+      titulo: 'Administração Integrada',
+      modalidade: 'Híbrido',
+      duracao: '4 Semestres',
+      vagas: '35',
     },
-    {
-      id: '2',
-      nome: 'Desenvolvimento de Sistemas',
-      area: 'Tecnologia da Informação',
-      duracao: '3 anos',
-      status: 'A'
-    }
-  ]);
-
-
-
-  const [
-    disciplinas,
-    setDisciplinas
-  ] = useState([
-    {
-      id: '1',
-      nome: 'Lógica de Programação',
-      codigo: 'LOG101',
-      cargaHoraria: '80h',
-      status: 'A'
-    },
-    {
-      id: '2',
-      nome: 'Banco de Dados I',
-      codigo: 'BD101',
-      cargaHoraria: '60h',
-      status: 'A'
-    }
-  ]);
-
-
-
-  const [
-    avaliacoes,
-    setAvaliacoes
-  ] = useState([
-    {
-      id: '1',
-      alunoId: 't1_1',
-      aluno: 'Lucas Almeida',
-      titulo: 'Prova 1 - Lógica',
-      disciplina: 'Lógica de Programação',
-      nota: '8.5',
-      tipo: 'Prova',
-      data: '15/10/2024'
-    }
-  ]);
-
-
-  const [
-    boletins,
-    setBoletins
-  ] = useState([
-    {
-      id: '1',
-      aluno: 'Lucas Almeida',
-      disciplina: 'Lógica de Programação',
-      nota: '8.5'
-    }
-  ]);
-
-
-  // ========================================================
-  // BUSCAR ALUNOS NA API
-  // ========================================================
-
-  const buscarAlunos = async (
-    mostrarErro = false
-  ) => {
-
-    try {
-
-      const resposta =
-        await fetchComTimeout(
-          `${API_URL}/alunos.php`,
-          {},
-          4000
-        );
-
-      if (!resposta.ok) {
-        throw new Error(
-          `Erro HTTP: ${resposta.status}`
-        );
-      }
-
-      const dados =
-        await resposta.json();
-
-      if (Array.isArray(dados)) {
-
-        setAlunos(dados);
-
-        return true;
-      }
-
-      throw new Error(
-        dados.mensagem ||
-        'A API retornou dados inválidos.'
-      );
-
-    } catch (erro) {
-
-      console.log(
-        'API de alunos indisponível:',
-        erro
-      );
-
-      if (mostrarErro) {
-
-        Alert.alert(
-          'API indisponível',
-          'Não foi possível atualizar pelo MySQL. Os dados atuais foram mantidos.'
-        );
-
-      }
-
-      return false;
-
-    } finally {
-
-      setCarregandoAlunos(false);
-
-    }
-  };
-
-
-
-  useEffect(() => {
-
-    buscarAlunos(false);
-
-  }, []);
-
-
-
-  const adicionarAluno = async (
-    novoAluno
-  ) => {
-
-    const alunoLocal = {
-
-      ...novoAluno,
-
-      id: `local_${Date.now()}`,
-
-      status: 'A'
-
-    };
-
-
-    // Adiciona imediatamente
-    setAlunos(
-      listaAtual => [
-        ...listaAtual,
-        alunoLocal
-      ]
-    );
-
-
-    // Tenta enviar para API
-    try {
-
-      const resposta =
-        await fetchComTimeout(
-          `${API_URL}/cadastrar_aluno.php`,
-          {
-            method: 'POST',
-
-            headers: {
-              'Content-Type':
-                'application/json'
-            },
-
-            body: JSON.stringify({
-              nome: novoAluno.nome,
-              ra: novoAluno.ra,
-              curso: novoAluno.curso,
-              turma: novoAluno.turma
-            })
-          },
-          4000
-        );
-
-
-      if (!resposta.ok) {
-
-        throw new Error(
-          `Erro HTTP: ${resposta.status}`
-        );
-
-      }
-
-
-      const dados =
-        await resposta.json();
-
-
-      if (!dados.sucesso) {
-
-        throw new Error(
-          dados.mensagem ||
-          'Não foi possível cadastrar o aluno.'
-        );
-
-      }
-
-
-      await buscarAlunos(false);
-
-      return true;
-
-    } catch (erro) {
-
-      console.log(
-        'Aluno mantido localmente:',
-        erro
-      );
-
-      return true;
-
-    }
-  };
-
-
-
-  const toggleStatusAluno =
-    async (id) => {
-
-      let alunoAnterior = null;
-
-      setAlunos(listaAtual => {
-
-        const novaLista =
-          listaAtual.map(aluno => {
-
-            if (
-              String(aluno.id) ===
-              String(id)
-            ) {
-
-              alunoAnterior = aluno;
-
-              return {
-                ...aluno,
-
-                status:
-                  aluno.status === 'A'
-                    ? 'I'
-                    : 'A'
-              };
-
-            }
-
-            return aluno;
-
-          });
-
-        return novaLista;
-
-      });
-
-
- 
-      if (
-        String(id).startsWith('local_') ||
-        String(id).startsWith('t1_') ||
-        String(id).startsWith('t2_')
-      ) {
-
-        return;
-
-      }
-
-
-      try {
-
-        const aluno =
-          alunos.find(
-            item =>
-              String(item.id) ===
-              String(id)
-          );
-
-        if (!aluno) {
-          return;
-        }
-
-
-        const novoStatus =
-          aluno.status === 'A'
-            ? 'I'
-            : 'A';
-
-
-        const resposta =
-          await fetchComTimeout(
-            `${API_URL}/alterar_status.php`,
-            {
-              method: 'POST',
-
-              headers: {
-                'Content-Type':
-                  'application/json'
-              },
-
-              body: JSON.stringify({
-                id,
-                status: novoStatus
-              })
-            },
-            4000
-          );
-
-
-        if (!resposta.ok) {
-
-          throw new Error(
-            `Erro HTTP: ${resposta.status}`
-          );
-
-        }
-
-
-        const dados =
-          await resposta.json();
-
-
-        if (!dados.sucesso) {
-
-          throw new Error(
-            dados.mensagem ||
-            'Erro ao alterar status.'
-          );
-
-        }
-
-      } catch (erro) {
-
-        console.log(
-          'Erro ao alterar status:',
-          erro
-        );
-
-
-        // Reverte a alteração
-        setAlunos(
-          listaAtual =>
-            listaAtual.map(item => {
-
-              if (
-                String(item.id) ===
-                String(id)
-              ) {
-
-                return alunoAnterior ||
-                  item;
-
-              }
-
-              return item;
-
-            })
-        );
-
-
-        Alert.alert(
-          'Erro',
-          'Não foi possível alterar o status no servidor.'
-        );
-
-      }
-
-    };
-
-
-  const adicionarProfessor =
-    (novoProfessor) => {
-
-      setProfessores(
-        listaAtual => [
-          ...listaAtual,
-
-          {
-            ...novoProfessor,
-            id:
-              `prof_${Date.now()}`
-          }
-        ]
-      );
-
-    };
-
-
-
-  const adicionarCoordenador =
-    (novoCoordenador) => {
-
-      setCoordenadores(
-        listaAtual => [
-          ...listaAtual,
-
-          {
-            ...novoCoordenador,
-            id:
-              `coord_${Date.now()}`
-          }
-        ]
-      );
-
-    };
-
-
-
-  const adicionarResponsavel =
-    (novoResponsavel) => {
-
-      setResponsaveis(
-        listaAtual => [
-          ...listaAtual,
-
-          {
-            ...novoResponsavel,
-            id:
-              `resp_${Date.now()}`
-          }
-        ]
-      );
-
-    };
-
-
-
-  const adicionarMatricula =
-    (novaMatricula) => {
-
-      setMatriculas(
-        listaAtual => [
-          ...listaAtual,
-
-          {
-            ...novaMatricula,
-            id:
-              `mat_${Date.now()}`
-          }
-        ]
-      );
-
-    };
-
-
-
-  const adicionarTurma =
-    (novaTurma) => {
-
-      setTurmas(
-        listaAtual => [
-          ...listaAtual,
-
-          {
-            ...novaTurma,
-            id:
-              `turma_${Date.now()}`
-          }
-        ]
-      );
-
-    };
-
-
-
-  const adicionarCurso =
-    (novoCurso) => {
-
-      setCursos(
-        listaAtual => [
-          ...listaAtual,
-
-          {
-            ...novoCurso,
-            id:
-              `curso_${Date.now()}`
-          }
-        ]
-      );
-
-    };
-
-
-
-  const adicionarDisciplina =
-    (novaDisciplina) => {
-
-      setDisciplinas(
-        listaAtual => [
-          ...listaAtual,
-
-          {
-            ...novaDisciplina,
-            id:
-              `disc_${Date.now()}`
-          }
-        ]
-      );
-
-    };
-
-
-
-  const adicionarAvaliacao =
-    (novaAvaliacao) => {
-
-      const avaliacao = {
-
-        ...novaAvaliacao,
-
-        id:
-          `aval_${Date.now()}`
-
-      };
-
-
-      setAvaliacoes(
-        listaAtual => [
-          ...listaAtual,
-          avaliacao
-        ]
-      );
-
-
-     
-      setBoletins(
-        listaAtual => [
-          ...listaAtual,
-
-          {
-            id:
-              `bol_${Date.now()}`,
-
-            aluno:
-              novaAvaliacao.aluno,
-
-            disciplina:
-              novaAvaliacao.disciplina,
-
-            nota:
-              novaAvaliacao.nota
-          }
-        ]
-      );
-
-    };
-
-
-
-  const valor = {
-
-    alunos,
-
-    setAlunos,
-
-    carregandoAlunos,
-
-    buscarAlunos,
-
-    adicionarAluno,
-
-    toggleStatusAluno,
-
-    professores,
-
-    setProfessores,
-
-    adicionarProfessor,
-
-    coordenadores,
-
-    setCoordenadores,
-
-    adicionarCoordenador,
-
-    responsaveis,
-
-    setResponsaveis,
-
-    adicionarResponsavel,
-
-    matriculas,
-
-    setMatriculas,
-
-    adicionarMatricula,
-
-    turmas,
-
-    setTurmas,
-
-    adicionarTurma,
-
-    cursos,
-
-    setCursos,
-
-    adicionarCurso,
-
-    disciplinas,
-
-    setDisciplinas,
-
-    adicionarDisciplina,
-
-    avaliacoes,
-
-    setAvaliacoes,
-
-    adicionarAvaliacao,
-
-    boletins,
-
-    setBoletins
-
-  };
-
-
-  return (
-
-    <ScholarContext.Provider
-      value={valor}
-    >
-      {children}
-    </ScholarContext.Provider>
-
-  );
-
+  ],
+  disciplina: [],
+  frequencia: [],
+  matricula: [],
+  nota: [],
+  professor: [],
+  responsavel: [],
+  turma: [],
 };
 
+export default function App() {
+  const [abaAtiva, setAbaAtiva] = useState('dashboard'); // 'dashboard' ou id da tabela
+  const [dados, setDados] = useState(DADOS_INICIAIS);
+  const [busca, setBusca] = useState('');
 
+  // Estados do Modal de Adicionar / Editar
+  const [modalFormVisivel, setModalFormVisivel] = useState(false);
+  const [itemEditando, setItemEditando] = useState(null);
+  const [formValores, setFormValores] = useState({});
+  const [erroForm, setErroForm] = useState('');
 
-export const useScholar = () => {
+  // Estado do Modal de Confirmação de Exclusão
+  const [itemExcluindo, setItemExcluindo] = useState(null);
 
-  return useContext(
-    ScholarContext
+  const tabelaAtual = useMemo(
+    () => TABELAS.find((t) => t.id === abaAtiva),
+    [abaAtiva]
   );
 
-};
-
-
-
-function HomeScreen({
-  navigation
-}) {
-
-  const {
-
-    alunos,
-    professores,
-    turmas,
-    cursos
-
-  } = useScholar();
-
-
-  return (
-
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{
-        paddingBottom: 30
-      }}
-    >
-
-      <View style={styles.header}>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.headerTitle}>
-            App Scholar
-          </Text>
-
-          <Text style={styles.headerSubtitle}>
-            Sistema de Gestão Acadêmica
-          </Text>
-
-        </View>
-
-      </View>
-
-
-      <View style={styles.welcomeCard}>
-
-        <View style={styles.welcomeIcon}>
-
-          <Ionicons
-            name="school"
-            size={42}
-            color="#2563eb"
-          />
-
-        </View>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.welcomeTitle}>
-            Bem-vindo!
-          </Text>
-
-          <Text style={styles.welcomeText}>
-            Gerencie as informações acadêmicas
-            da instituição em um só lugar.
-          </Text>
-
-        </View>
-
-      </View>
-
-
-      <Text style={styles.sectionTitle}>
-        Resumo
-      </Text>
-
-
-      <View style={styles.statsGrid}>
-
-        <View style={styles.statCard}>
-
-          <Ionicons
-            name="people"
-            size={28}
-            color="#2563eb"
-          />
-
-          <Text style={styles.statValue}>
-            {alunos.length}
-          </Text>
-
-          <Text style={styles.statLabel}>
-            Alunos
-          </Text>
-
-        </View>
-
-
-        <View style={styles.statCard}>
-
-          <Ionicons
-            name="person"
-            size={28}
-            color="#16a34a"
-          />
-
-          <Text style={styles.statValue}>
-            {professores.length}
-          </Text>
-
-          <Text style={styles.statLabel}>
-            Professores
-          </Text>
-
-        </View>
-
-
-        <View style={styles.statCard}>
-
-          <Ionicons
-            name="school"
-            size={28}
-            color="#9333ea"
-          />
-
-          <Text style={styles.statValue}>
-            {turmas.length}
-          </Text>
-
-          <Text style={styles.statLabel}>
-            Turmas
-          </Text>
-
-        </View>
-
-
-        <View style={styles.statCard}>
-
-          <Ionicons
-            name="book"
-            size={28}
-            color="#ea580c"
-          />
-
-          <Text style={styles.statValue}>
-            {cursos.length}
-          </Text>
-
-          <Text style={styles.statLabel}>
-            Cursos
-          </Text>
-
-        </View>
-
-      </View>
-
-
-      <Text style={styles.sectionTitle}>
-        Administração
-      </Text>
-
-
-      <TouchableOpacity
-        style={styles.menuCard}
-        onPress={() =>
-          navigation.navigate(
-            'Professores'
-          )
-        }
-      >
-
-        <View style={styles.menuIcon}>
-
-          <Ionicons
-            name="person-outline"
-            size={25}
-            color="#2563eb"
-          />
-
-        </View>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.menuTitle}>
-            Professores
-          </Text>
-
-          <Text style={styles.menuText}>
-            Gerenciar professores
-          </Text>
-
-        </View>
-
-        <Ionicons
-          name="chevron-forward"
-          size={22}
-          color="#999"
-        />
-
-      </TouchableOpacity>
-
-
-      <TouchableOpacity
-        style={styles.menuCard}
-        onPress={() =>
-          navigation.navigate(
-            'Coordenadores'
-          )
-        }
-      >
-
-        <View style={styles.menuIcon}>
-
-          <Ionicons
-            name="people-outline"
-            size={25}
-            color="#16a34a"
-          />
-
-        </View>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.menuTitle}>
-            Coordenadores
-          </Text>
-
-          <Text style={styles.menuText}>
-            Gerenciar coordenação
-          </Text>
-
-        </View>
-
-        <Ionicons
-          name="chevron-forward"
-          size={22}
-          color="#999"
-        />
-
-      </TouchableOpacity>
-
-
-      <TouchableOpacity
-        style={styles.menuCard}
-        onPress={() =>
-          navigation.navigate(
-            'Responsáveis'
-          )
-        }
-      >
-
-        <View style={styles.menuIcon}>
-
-          <Ionicons
-            name="people-circle-outline"
-            size={25}
-            color="#9333ea"
-          />
-
-        </View>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.menuTitle}>
-            Responsáveis
-          </Text>
-
-          <Text style={styles.menuText}>
-            Gerenciar responsáveis
-          </Text>
-
-        </View>
-
-        <Ionicons
-          name="chevron-forward"
-          size={22}
-          color="#999"
-        />
-
-      </TouchableOpacity>
-
-
-      <TouchableOpacity
-        style={styles.menuCard}
-        onPress={() =>
-          navigation.navigate(
-            'Matrículas'
-          )
-        }
-      >
-
-        <View style={styles.menuIcon}>
-
-          <Ionicons
-            name="document-text-outline"
-            size={25}
-            color="#ea580c"
-          />
-
-        </View>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.menuTitle}>
-            Matrículas
-          </Text>
-
-          <Text style={styles.menuText}>
-            Gerenciar matrículas
-          </Text>
-
-        </View>
-
-        <Ionicons
-          name="chevron-forward"
-          size={22}
-          color="#999"
-        />
-
-      </TouchableOpacity>
-
-
-      <TouchableOpacity
-        style={styles.menuCard}
-        onPress={() =>
-          navigation.navigate(
-            'Cursos'
-          )
-        }
-      >
-
-        <View style={styles.menuIcon}>
-
-          <Ionicons
-            name="library-outline"
-            size={25}
-            color="#0891b2"
-          />
-
-        </View>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.menuTitle}>
-            Cursos
-          </Text>
-
-          <Text style={styles.menuText}>
-            Gerenciar cursos
-          </Text>
-
-        </View>
-
-        <Ionicons
-          name="chevron-forward"
-          size={22}
-          color="#999"
-        />
-
-      </TouchableOpacity>
-
-
-      <TouchableOpacity
-        style={styles.menuCard}
-        onPress={() =>
-          navigation.navigate(
-            'Disciplinas'
-          )
-        }
-      >
-
-        <View style={styles.menuIcon}>
-
-          <Ionicons
-            name="book-outline"
-            size={25}
-            color="#dc2626"
-          />
-
-        </View>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.menuTitle}>
-            Disciplinas
-          </Text>
-
-          <Text style={styles.menuText}>
-            Gerenciar disciplinas
-          </Text>
-
-        </View>
-
-        <Ionicons
-          name="chevron-forward"
-          size={22}
-          color="#999"
-        />
-
-      </TouchableOpacity>
-
-
-      <TouchableOpacity
-        style={styles.menuCard}
-        onPress={() =>
-          navigation.navigate(
-            'Avaliações'
-          )
-        }
-      >
-
-        <View style={styles.menuIcon}>
-
-          <Ionicons
-            name="clipboard-outline"
-            size={25}
-            color="#7c3aed"
-          />
-
-        </View>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.menuTitle}>
-            Avaliações
-          </Text>
-
-          <Text style={styles.menuText}>
-            Gerenciar avaliações
-          </Text>
-
-        </View>
-
-        <Ionicons
-          name="chevron-forward"
-          size={22}
-          color="#999"
-        />
-
-      </TouchableOpacity>
-
-    </ScrollView>
-
+  const totalRegistros = useMemo(
+    () => Object.values(dados).reduce((acc, lista) => acc + lista.length, 0),
+    [dados]
   );
 
-}
-
-
-
-function GestaoPessoaComFormacao({
-  titulo,
-  lista,
-  adicionar,
-  campos
-}) {
-
-  const [modalVisivel, setModalVisivel] =
-    useState(false);
-
-  const [formulario, setFormulario] =
-    useState({});
-
-
-  const abrirModal = () => {
-
-    const inicial = {};
-
-    campos.forEach(campo => {
-      inicial[campo.key] = '';
-    });
-
-    setFormulario(inicial);
-
-    setModalVisivel(true);
-
-  };
-
-
-  const atualizarCampo = (
-    campo,
-    valor
-  ) => {
-
-    setFormulario(
-      atual => ({
-        ...atual,
-        [campo]: valor
-      })
+  const registrosFiltrados = useMemo(() => {
+    if (!tabelaAtual) return [];
+    const lista = dados[tabelaAtual.id] || [];
+    if (!busca.trim()) return lista;
+    const termo = busca.toLowerCase();
+    return lista.filter((item) =>
+      Object.values(item).some((val) =>
+        String(val).toLowerCase().includes(termo)
+      )
     );
+  }, [dados, tabelaAtual, busca]);
 
+  // Abrir modal para ADICIONAR
+  const abrirAdicionar = () => {
+    setItemEditando(null);
+    setFormValores({});
+    setErroForm('');
+    setModalFormVisivel(true);
   };
 
+  // Abrir modal para EDITAR
+  const abrirEditar = (item) => {
+    setItemEditando(item);
+    setFormValores({ ...item });
+    setErroForm('');
+    setModalFormVisivel(true);
+  };
 
-  const salvar = () => {
-
-    const obrigatorios =
-      campos.filter(
-        campo =>
-          campo.obrigatorio
-      );
-
-
-    const incompleto =
-      obrigatorios.some(
-        campo =>
-          !String(
-            formulario[campo.key] || ''
-          ).trim()
-      );
-
-
-    if (incompleto) {
-
-      Alert.alert(
-        'Atenção',
-        'Preencha todos os campos obrigatórios.'
-      );
-
-      return;
-
-    }
-
-
-    adicionar(formulario);
-
-    setModalVisivel(false);
-
-    Alert.alert(
-      'Sucesso',
-      `${titulo.slice(0, -1)} cadastrado com sucesso.`
+  // Salvar (Adicionar ou Editar)
+  const salvarRegistro = () => {
+    if (!tabelaAtual) return;
+    const campoFaltando = tabelaAtual.campos.find(
+      (c) => c.obrigatorio && !String(formValores[c.key] || '').trim()
     );
-
-  };
-
-
-  return (
-
-    <View style={styles.container}>
-
-      <View style={styles.header}>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.headerTitle}>
-            {titulo}
-          </Text>
-
-          <Text style={styles.headerSubtitle}>
-            Cadastro e gerenciamento
-          </Text>
-
-        </View>
-
-
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={abrirModal}
-        >
-
-          <Ionicons
-            name="add"
-            size={27}
-            color="#fff"
-          />
-
-        </TouchableOpacity>
-
-      </View>
-
-
-      <FlatList
-        data={lista}
-        keyExtractor={item =>
-          String(item.id)
-        }
-        contentContainerStyle={{
-          padding: 16,
-          paddingBottom: 30
-        }}
-        ListEmptyComponent={
-
-          <View style={styles.emptyContainer}>
-
-            <Ionicons
-              name="people-outline"
-              size={50}
-              color="#999"
-            />
-
-            <Text style={styles.emptyTitle}>
-              Nenhum registro
-            </Text>
-
-          </View>
-
-        }
-        renderItem={({ item }) => (
-
-          <View style={styles.card}>
-
-            <View style={styles.cardIcon}>
-
-              <Ionicons
-                name="person"
-                size={25}
-                color="#2563eb"
-              />
-
-            </View>
-
-
-            <View style={{ flex: 1 }}>
-
-              <Text style={styles.cardTitle}>
-                {item.nome}
-              </Text>
-
-              {item.email && (
-
-                <Text style={styles.cardText}>
-                  {item.email}
-                </Text>
-
-              )}
-
-              {item.telefone && (
-
-                <Text style={styles.cardText}>
-                  {item.telefone}
-                </Text>
-
-              )}
-
-              {item.formacao && (
-
-                <Text style={styles.cardText}>
-                  Formação: {item.formacao}
-                </Text>
-
-              )}
-
-              {item.departamento && (
-
-                <Text style={styles.cardText}>
-                  Departamento: {item.departamento}
-                </Text>
-
-              )}
-
-            </View>
-
-          </View>
-
-        )}
-
-      />
-
-
-      <Modal
-        visible={modalVisivel}
-        transparent
-        animationType="slide"
-        onRequestClose={() =>
-          setModalVisivel(false)
-        }
-      >
-
-        <View style={styles.modalOverlay}>
-
-          <View style={styles.modalContainer}>
-
-            <ScrollView>
-
-              <Text style={styles.modalTitle}>
-                Novo {titulo.slice(0, -1)}
-              </Text>
-
-
-              {campos.map(campo => (
-
-                <View key={campo.key}>
-
-                  <Text style={styles.inputLabel}>
-                    {campo.label}
-                    {campo.obrigatorio
-                      ? ' *'
-                      : ''}
-                  </Text>
-
-
-                  <TextInput
-                    style={styles.input}
-                    placeholder={
-                      campo.placeholder ||
-                      campo.label
-                    }
-                    value={
-                      formulario[campo.key] ||
-                      ''
-                    }
-                    onChangeText={valor =>
-                      atualizarCampo(
-                        campo.key,
-                        valor
-                      )
-                    }
-                    keyboardType={
-                      campo.keyboardType ||
-                      'default'
-                    }
-                  />
-
-                </View>
-
-              ))}
-
-
-              <View style={styles.modalButtons}>
-
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() =>
-                    setModalVisivel(false)
-                  }
-                >
-
-                  <Text style={styles.cancelButtonText}>
-                    Cancelar
-                  </Text>
-
-                </TouchableOpacity>
-
-
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={salvar}
-                >
-
-                  <Text style={styles.saveButtonText}>
-                    Salvar
-                  </Text>
-
-                </TouchableOpacity>
-
-              </View>
-
-            </ScrollView>
-
-          </View>
-
-        </View>
-
-      </Modal>
-
-    </View>
-
-  );
-
-}
-
-
-
-function ProfessoresScreen() {
-
-  const {
-    professores,
-    adicionarProfessor
-  } = useScholar();
-
-
-  return (
-
-    <GestaoPessoaComFormacao
-
-      titulo="Professores"
-
-      lista={professores}
-
-      adicionar={adicionarProfessor}
-
-      campos={[
-        {
-          key: 'nome',
-          label: 'Nome',
-          obrigatorio: true
-        },
-        {
-          key: 'email',
-          label: 'E-mail'
-        },
-        {
-          key: 'telefone',
-          label: 'Telefone',
-          keyboardType: 'phone-pad'
-        },
-        {
-          key: 'cpf',
-          label: 'CPF'
-        },
-        {
-          key: 'endereco',
-          label: 'Endereço'
-        },
-        {
-          key: 'departamento',
-          label: 'Departamento'
-        },
-        {
-          key: 'formacao',
-          label: 'Formação'
-        },
-        {
-          key: 'observacoes',
-          label: 'Observações'
-        }
-      ]}
-
-    />
-
-  );
-
-}
-
-
-
-function CoordenadoresScreen() {
-
-  const {
-    coordenadores,
-    adicionarCoordenador
-  } = useScholar();
-
-
-  return (
-
-    <GestaoPessoaComFormacao
-
-      titulo="Coordenadores"
-
-      lista={coordenadores}
-
-      adicionar={adicionarCoordenador}
-
-      campos={[
-        {
-          key: 'nome',
-          label: 'Nome',
-          obrigatorio: true
-        },
-        {
-          key: 'email',
-          label: 'E-mail'
-        },
-        {
-          key: 'telefone',
-          label: 'Telefone',
-          keyboardType: 'phone-pad'
-        },
-        {
-          key: 'cpf',
-          label: 'CPF'
-        },
-        {
-          key: 'endereco',
-          label: 'Endereço'
-        },
-        {
-          key: 'departamento',
-          label: 'Departamento'
-        },
-        {
-          key: 'formacao',
-          label: 'Formação'
-        },
-        {
-          key: 'observacoes',
-          label: 'Observações'
-        }
-      ]}
-
-    />
-
-  );
-
-}
-
-
-function ResponsaveisScreen() {
-
-  const {
-    responsaveis,
-    adicionarResponsavel
-  } = useScholar();
-
-
-  return (
-
-    <GestaoPessoaComFormacao
-
-      titulo="Responsáveis"
-
-      lista={responsaveis}
-
-      adicionar={adicionarResponsavel}
-
-      campos={[
-        {
-          key: 'nome',
-          label: 'Nome',
-          obrigatorio: true
-        },
-        {
-          key: 'email',
-          label: 'E-mail'
-        },
-        {
-          key: 'telefone',
-          label: 'Telefone',
-          keyboardType: 'phone-pad'
-        },
-        {
-          key: 'cpf',
-          label: 'CPF'
-        },
-        {
-          key: 'endereco',
-          label: 'Endereço'
-        }
-      ]}
-
-    />
-
-  );
-
-}
-
-function MatriculasScreen() {
-
-  const {
-    matriculas,
-    adicionarMatricula,
-    alunos,
-    cursos,
-    turmas
-  } = useScholar();
-
-  const [modalVisivel, setModalVisivel] =
-    useState(false);
-
-  const [aluno, setAluno] =
-    useState('');
-
-  const [curso, setCurso] =
-    useState('');
-
-  const [turma, setTurma] =
-    useState('');
-
-  const [numero, setNumero] =
-    useState('');
-
-
-  const limparFormulario = () => {
-
-    setAluno('');
-    setCurso('');
-    setTurma('');
-    setNumero('');
-
-  };
-
-
-  const salvarMatricula = () => {
-
-    if (!aluno || !curso || !turma) {
-
-      Alert.alert(
-        'Atenção',
-        'Selecione o aluno, curso e turma.'
-      );
-
+    if (campoFaltando) {
+      setErroForm(`O campo "${campoFaltando.label}" é obrigatório.`);
       return;
     }
 
-
-    const alunoSelecionado =
-      alunos.find(
-        item =>
-          String(item.id) ===
-          String(aluno)
-      );
-
-
-    adicionarMatricula({
-
-      numero:
-        numero ||
-        `MAT${Date.now()}`,
-
-      aluno:
-        alunoSelecionado
-          ? alunoSelecionado.nome
-          : aluno,
-
-      alunoId:
-        aluno,
-
-      curso,
-
-      turma,
-
-      data:
-        new Date().toLocaleDateString('pt-BR'),
-
-      status: 'Ativa'
-
+    setDados((prev) => {
+      const listaAtual = prev[tabelaAtual.id] || [];
+      if (itemEditando) {
+        return {
+          ...prev,
+          [tabelaAtual.id]: listaAtual.map((reg) =>
+            reg.id === itemEditando.id ? { ...formValores, id: reg.id } : reg
+          ),
+        };
+      } else {
+        const novoItem = {
+          ...formValores,
+          id: String(Date.now()),
+        };
+        return {
+          ...prev,
+          [tabelaAtual.id]: [novoItem, ...listaAtual],
+        };
+      }
     });
 
-
-    limparFormulario();
-
-    setModalVisivel(false);
-
-
-    Alert.alert(
-      'Sucesso',
-      'Matrícula cadastrada com sucesso.'
-    );
-
+    setModalFormVisivel(false);
+    setItemEditando(null);
+    setFormValores({});
   };
 
+  // Confirmar EXCLUSÃO
+  const confirmarExclusao = () => {
+    if (!tabelaAtual || !itemExcluindo) return;
+    setDados((prev) => ({
+      ...prev,
+      [tabelaAtual.id]: (prev[tabelaAtual.id] || []).filter(
+        (reg) => reg.id !== itemExcluindo.id
+      ),
+    }));
+    setItemExcluindo(null);
+  };
 
   return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#1E3A8A" />
 
-    <View style={styles.container}>
-
+      {/* Cabeçalho Principal */}
       <View style={styles.header}>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.headerTitle}>
-            Matrículas
-          </Text>
-
-          <Text style={styles.headerSubtitle}>
-            Gerenciamento de matrículas
-          </Text>
-
-        </View>
-
-
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() =>
-            setModalVisivel(true)
-          }
-        >
-
-          <Ionicons
-            name="add"
-            size={27}
-            color="#fff"
-          />
-
-        </TouchableOpacity>
-
-      </View>
-
-
-      <FlatList
-        data={matriculas}
-        keyExtractor={item =>
-          String(item.id)
-        }
-        contentContainerStyle={{
-          padding: 16,
-          paddingBottom: 30
-        }}
-        ListEmptyComponent={
-
-          <View style={styles.emptyContainer}>
-
-            <Ionicons
-              name="document-text-outline"
-              size={50}
-              color="#999"
-            />
-
-            <Text style={styles.emptyTitle}>
-              Nenhuma matrícula cadastrada
-            </Text>
-
+        <View style={styles.headerTop}>
+          <View style={styles.logoRow}>
+            <View style={styles.logoIcon}>
+              <Ionicons name="school" size={22} color="#1E3A8A" />
+            </View>
+            <View>
+              <Text style={styles.headerTitle}>APP SCHOLAR</Text>
+              <Text style={styles.headerSubtitle}>
+                Gestão Acadêmica • 14 Tabelas
+              </Text>
+            </View>
           </View>
 
-        }
-        renderItem={({ item }) => (
-
-          <View style={styles.card}>
-
-            <View style={styles.cardIcon}>
-
-              <Ionicons
-                name="document-text"
-                size={25}
-                color="#ea580c"
-              />
-
-            </View>
-
-
-            <View style={{ flex: 1 }}>
-
-              <Text style={styles.cardTitle}>
-                {item.aluno}
-              </Text>
-
-              <Text style={styles.cardText}>
-                Matrícula: {item.numero}
-              </Text>
-
-              <Text style={styles.cardText}>
-                Curso: {item.curso}
-              </Text>
-
-              <Text style={styles.cardText}>
-                Turma: {item.turma}
-              </Text>
-
-              {item.data && (
-
-                <Text style={styles.cardText}>
-                  Data: {item.data}
-                </Text>
-
-              )}
-
-            </View>
-
-          </View>
-
-        )}
-
-      />
-
-
-      <Modal
-        visible={modalVisivel}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
-          setModalVisivel(false);
-          limparFormulario();
-        }}
-      >
-
-        <View style={styles.modalOverlay}>
-
-          <View style={styles.modalContainer}>
-
-            <ScrollView>
-
-              <Text style={styles.modalTitle}>
-                Nova Matrícula
-              </Text>
-
-
-              <Text style={styles.inputLabel}>
-                Número da matrícula
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ex.: 20240001"
-                value={numero}
-                onChangeText={setNumero}
-                keyboardType="numeric"
-              />
-
-
-              <Text style={styles.inputLabel}>
-                Aluno *
-              </Text>
-
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{
-                  marginBottom: 12
-                }}
-              >
-
-                {alunos.map(item => (
-
-                  <TouchableOpacity
-                    key={item.id}
-                    style={[
-                      styles.choiceButton,
-
-                      String(aluno) ===
-                        String(item.id) &&
-                        styles.choiceButtonSelected
-                    ]}
-                    onPress={() =>
-                      setAluno(
-                        String(item.id)
-                      )
-                    }
-                  >
-
-                    <Text
-                      style={[
-                        styles.choiceButtonText,
-
-                        String(aluno) ===
-                          String(item.id) &&
-                          styles.choiceButtonTextSelected
-                      ]}
-                    >
-                      {item.nome}
-                    </Text>
-
-                  </TouchableOpacity>
-
-                ))}
-
-              </ScrollView>
-
-
-              <Text style={styles.inputLabel}>
-                Curso *
-              </Text>
-
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{
-                  marginBottom: 12
-                }}
-              >
-
-                {cursos.map(item => (
-
-                  <TouchableOpacity
-                    key={item.id}
-                    style={[
-                      styles.choiceButton,
-
-                      curso === item.nome &&
-                        styles.choiceButtonSelected
-                    ]}
-                    onPress={() =>
-                      setCurso(item.nome)
-                    }
-                  >
-
-                    <Text
-                      style={[
-                        styles.choiceButtonText,
-
-                        curso === item.nome &&
-                          styles.choiceButtonTextSelected
-                      ]}
-                    >
-                      {item.nome}
-                    </Text>
-
-                  </TouchableOpacity>
-
-                ))}
-
-              </ScrollView>
-
-
-              <Text style={styles.inputLabel}>
-                Turma *
-              </Text>
-
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{
-                  marginBottom: 12
-                }}
-              >
-
-                {turmas.map(item => (
-
-                  <TouchableOpacity
-                    key={item.id}
-                    style={[
-                      styles.choiceButton,
-
-                      turma === item.nome &&
-                        styles.choiceButtonSelected
-                    ]}
-                    onPress={() =>
-                      setTurma(item.nome)
-                    }
-                  >
-
-                    <Text
-                      style={[
-                        styles.choiceButtonText,
-
-                        turma === item.nome &&
-                          styles.choiceButtonTextSelected
-                      ]}
-                    >
-                      {item.nome}
-                    </Text>
-
-                  </TouchableOpacity>
-
-                ))}
-
-              </ScrollView>
-
-
-              <View style={styles.modalButtons}>
-
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => {
-
-                    setModalVisivel(false);
-
-                    limparFormulario();
-
-                  }}
-                >
-
-                  <Text style={styles.cancelButtonText}>
-                    Cancelar
-                  </Text>
-
-                </TouchableOpacity>
-
-
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={salvarMatricula}
-                >
-
-                  <Text style={styles.saveButtonText}>
-                    Salvar
-                  </Text>
-
-                </TouchableOpacity>
-
-              </View>
-
-            </ScrollView>
-
-          </View>
-
-        </View>
-
-      </Modal>
-
-    </View>
-
-  );
-
-}
-
-
-function AlunosScreen() {
-
-  const {
-    alunos,
-    adicionarAluno,
-    toggleStatusAluno,
-    buscarAlunos,
-    carregandoAlunos
-  } = useScholar();
-
-
-  const [busca, setBusca] =
-    useState('');
-
-  const [modalVisivel, setModalVisivel] =
-    useState(false);
-
-  const [nome, setNome] =
-    useState('');
-
-  const [ra, setRa] =
-    useState('');
-
-  const [curso, setCurso] =
-    useState('');
-
-  const [turma, setTurma] =
-    useState('');
-
-
-  const alunosFiltrados =
-    alunos.filter(aluno => {
-
-      const texto =
-        busca.toLowerCase();
-
-      return (
-
-        String(aluno.nome || '')
-          .toLowerCase()
-          .includes(texto)
-
-        ||
-
-        String(aluno.ra || '')
-          .toLowerCase()
-          .includes(texto)
-
-        ||
-
-        String(aluno.curso || '')
-          .toLowerCase()
-          .includes(texto)
-
-        ||
-
-        String(aluno.turma || '')
-          .toLowerCase()
-          .includes(texto)
-
-      );
-
-    });
-
-
-  const limparFormulario = () => {
-
-    setNome('');
-    setRa('');
-    setCurso('');
-    setTurma('');
-
-  };
-
-
-  const salvarAluno = async () => {
-
-    if (
-      !nome.trim() ||
-      !ra.trim() ||
-      !curso.trim() ||
-      !turma.trim()
-    ) {
-
-      Alert.alert(
-        'Atenção',
-        'Preencha todos os campos.'
-      );
-
-      return;
-
-    }
-
-
-    await adicionarAluno({
-
-      nome: nome.trim(),
-
-      ra: ra.trim(),
-
-      curso: curso.trim(),
-
-      turma: turma.trim()
-
-    });
-
-
-    limparFormulario();
-
-    setModalVisivel(false);
-
-
-    Alert.alert(
-      'Sucesso',
-      'Aluno cadastrado com sucesso.'
-    );
-
-  };
-
-
-  return (
-
-    <View style={styles.container}>
-
-      <View style={styles.header}>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.headerTitle}>
-            Alunos
-          </Text>
-
-          <Text style={styles.headerSubtitle}>
-            {alunos.length} alunos cadastrados
-          </Text>
-
-        </View>
-
-
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() =>
-            setModalVisivel(true)
-          }
-        >
-
-          <Ionicons
-            name="add"
-            size={27}
-            color="#fff"
-          />
-
-        </TouchableOpacity>
-
-      </View>
-
-
-      <View style={styles.searchContainer}>
-
-        <Ionicons
-          name="search-outline"
-          size={21}
-          color="#777"
-        />
-
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Pesquisar aluno..."
-          placeholderTextColor="#999"
-          value={busca}
-          onChangeText={setBusca}
-        />
-
-        {busca.length > 0 && (
-
-          <TouchableOpacity
-            onPress={() =>
-              setBusca('')
-            }
-          >
-
-            <Ionicons
-              name="close-circle"
-              size={21}
-              color="#999"
-            />
-
-          </TouchableOpacity>
-
-        )}
-
-      </View>
-
-
-      <View style={styles.listHeader}>
-
-        <Text style={styles.listHeaderText}>
-          {alunosFiltrados.length} resultado(s)
-        </Text>
-
-
-        <TouchableOpacity
-          onPress={() =>
-            buscarAlunos(true)
-          }
-        >
-
-          <Ionicons
-            name="refresh"
-            size={21}
-            color="#2563eb"
-          />
-
-        </TouchableOpacity>
-
-      </View>
-
-
-      <FlatList
-        data={alunosFiltrados}
-        keyExtractor={item =>
-          String(item.id)
-        }
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingBottom: 30
-        }}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-
-          <View style={styles.emptyContainer}>
-
-            <Ionicons
-              name="person-outline"
-              size={50}
-              color="#999"
-            />
-
-            <Text style={styles.emptyTitle}>
-              Nenhum aluno encontrado
-            </Text>
-
-            <Text style={styles.emptyText}>
-              Tente alterar os termos da pesquisa.
-            </Text>
-
-          </View>
-
-        }
-        renderItem={({ item }) => (
-
-          <View style={styles.studentCard}>
-
-            <View style={styles.studentAvatar}>
-
-              <Text style={styles.studentAvatarText}>
-                {String(
-                  item.nome || '?'
-                )
-                  .charAt(0)
-                  .toUpperCase()}
-              </Text>
-
-            </View>
-
-
-            <View style={{ flex: 1 }}>
-
-              <Text style={styles.studentName}>
-                {item.nome}
-              </Text>
-
-              <Text style={styles.studentInfo}>
-                RA: {item.ra}
-              </Text>
-
-              <Text style={styles.studentInfo}>
-                {item.curso}
-              </Text>
-
-              <Text style={styles.studentInfo}>
-                {item.turma}
-              </Text>
-
-
-              <View
-                style={[
-                  styles.statusBadge,
-
-                  item.status !== 'A' &&
-                    styles.statusBadgeInactive
-                ]}
-              >
-
-                <Text
-                  style={[
-                    styles.statusText,
-
-                    item.status !== 'A' &&
-                      styles.statusTextInactive
-                  ]}
-                >
-                  {item.status === 'A'
-                    ? 'ATIVO'
-                    : 'INATIVO'}
-                </Text>
-
-              </View>
-
-            </View>
-
-
+          {abaAtiva !== 'dashboard' && (
             <TouchableOpacity
-              style={styles.statusButton}
-              onPress={() =>
-                toggleStatusAluno(
-                  item.id
-                )
-              }
+              style={styles.btnHome}
+              onPress={() => {
+                setAbaAtiva('dashboard');
+                setBusca('');
+              }}
             >
-
-              <Ionicons
-                name={
-                  item.status === 'A'
-                    ? 'toggle'
-                    : 'toggle-outline'
-                }
-                size={32}
-                color={
-                  item.status === 'A'
-                    ? '#16a34a'
-                    : '#999'
-                }
-              />
-
+              <Ionicons name="grid-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.btnHomeText}>Início</Text>
             </TouchableOpacity>
-
-          </View>
-
-        )}
-
-      />
-
-
-      {carregandoAlunos && (
-
-        <View style={styles.loadingSmall}>
-
-          <ActivityIndicator
-            size="small"
-            color="#2563eb"
-          />
-
-          <Text style={styles.loadingText}>
-            Atualizando...
-          </Text>
-
+          )}
         </View>
 
-      )}
-
-
-      <Modal
-        visible={modalVisivel}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
-
-          setModalVisivel(false);
-
-          limparFormulario();
-
-        }}
-      >
-
-        <View style={styles.modalOverlay}>
-
-          <View style={styles.modalContainer}>
-
-            <ScrollView>
-
-              <Text style={styles.modalTitle}>
-                Novo Aluno
-              </Text>
-
-
-              <Text style={styles.inputLabel}>
-                Nome completo *
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Nome do aluno"
-                value={nome}
-                onChangeText={setNome}
-              />
-
-
-              <Text style={styles.inputLabel}>
-                RA *
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Registro acadêmico"
-                value={ra}
-                onChangeText={setRa}
-              />
-
-
-              <Text style={styles.inputLabel}>
-                Curso *
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Nome do curso"
-                value={curso}
-                onChangeText={setCurso}
-              />
-
-
-              <Text style={styles.inputLabel}>
-                Turma *
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ex.: 1º Módulo A"
-                value={turma}
-                onChangeText={setTurma}
-              />
-
-
-              <View style={styles.modalButtons}>
-
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => {
-
-                    setModalVisivel(false);
-
-                    limparFormulario();
-
-                  }}
-                >
-
-                  <Text style={styles.cancelButtonText}>
-                    Cancelar
-                  </Text>
-
-                </TouchableOpacity>
-
-
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={salvarAluno}
-                >
-
-                  <Text style={styles.saveButtonText}>
-                    Cadastrar
-                  </Text>
-
-                </TouchableOpacity>
-
-              </View>
-
-            </ScrollView>
-
-          </View>
-
-        </View>
-
-      </Modal>
-
-    </View>
-
-  );
-
-}
-
-
-
-function TurmasScreen() {
-
-  const {
-    turmas,
-    alunos,
-    adicionarTurma
-  } = useScholar();
-
-
-  const [modalVisivel, setModalVisivel] =
-    useState(false);
-
-  const [nome, setNome] =
-    useState('');
-
-  const [curso, setCurso] =
-    useState('');
-
-  const [periodo, setPeriodo] =
-    useState('');
-
-  const [ano, setAno] =
-    useState('');
-
-
-  const salvarTurma = () => {
-
-    if (
-      !nome.trim() ||
-      !curso.trim()
-    ) {
-
-      Alert.alert(
-        'Atenção',
-        'Informe o nome da turma e o curso.'
-      );
-
-      return;
-
-    }
-
-
-    adicionarTurma({
-
-      nome: nome.trim(),
-
-      curso: curso.trim(),
-
-      periodo:
-        periodo.trim() ||
-        'Não informado',
-
-      ano:
-        ano.trim() ||
-        new Date().getFullYear().toString(),
-
-      status: 'A'
-
-    });
-
-
-    setNome('');
-    setCurso('');
-    setPeriodo('');
-    setAno('');
-
-    setModalVisivel(false);
-
-
-    Alert.alert(
-      'Sucesso',
-      'Turma cadastrada com sucesso.'
-    );
-
-  };
-
-
-  return (
-
-    <View style={styles.container}>
-
-      <View style={styles.header}>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.headerTitle}>
-            Turmas
-          </Text>
-
-          <Text style={styles.headerSubtitle}>
-            Gerenciamento de turmas
-          </Text>
-
-        </View>
-
-
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() =>
-            setModalVisivel(true)
-          }
+        {/* Barra de Navegação Horizontal entre todas as 14 tabelas */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.navScroll}
         >
-
-          <Ionicons
-            name="add"
-            size={27}
-            color="#fff"
-          />
-
-        </TouchableOpacity>
-
-      </View>
-
-
-      <FlatList
-        data={turmas}
-        keyExtractor={item =>
-          String(item.id)
-        }
-        contentContainerStyle={{
-          padding: 16,
-          paddingBottom: 30
-        }}
-        renderItem={({ item }) => {
-
-          const quantidade =
-            alunos.filter(
-              aluno =>
-                String(aluno.turma) ===
-                String(item.nome)
-            ).length;
-
-
-          return (
-
-            <View style={styles.classCard}>
-
-              <View style={styles.classIcon}>
-
-                <Ionicons
-                  name="school"
-                  size={27}
-                  color="#2563eb"
-                />
-
-              </View>
-
-
-              <View style={{ flex: 1 }}>
-
-                <Text style={styles.cardTitle}>
-                  {item.nome}
-                </Text>
-
-                <Text style={styles.cardText}>
-                  Curso: {item.curso}
-                </Text>
-
-                <Text style={styles.cardText}>
-                  Período: {item.periodo}
-                </Text>
-
-                <Text style={styles.cardText}>
-                  Ano: {item.ano}
-                </Text>
-
-                <Text style={styles.cardText}>
-                  Alunos: {quantidade}
-                </Text>
-
-
-                <View style={styles.statusBadge}>
-
-                  <Text style={styles.statusText}>
-                    ATIVA
-                  </Text>
-
-                </View>
-
-              </View>
-
-            </View>
-
-          );
-
-        }}
-
-        ListEmptyComponent={
-
-          <View style={styles.emptyContainer}>
-
-            <Ionicons
-              name="school-outline"
-              size={50}
-              color="#999"
-            />
-
-            <Text style={styles.emptyTitle}>
-              Nenhuma turma cadastrada
-            </Text>
-
-          </View>
-
-        }
-
-      />
-
-
-      <Modal
-        visible={modalVisivel}
-        transparent
-        animationType="slide"
-        onRequestClose={() =>
-          setModalVisivel(false)
-        }
-      >
-
-        <View style={styles.modalOverlay}>
-
-          <View style={styles.modalContainer}>
-
-            <ScrollView>
-
-              <Text style={styles.modalTitle}>
-                Nova Turma
-              </Text>
-
-
-              <Text style={styles.inputLabel}>
-                Nome da turma *
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ex.: 3º Módulo A"
-                value={nome}
-                onChangeText={setNome}
-              />
-
-
-              <Text style={styles.inputLabel}>
-                Curso *
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Nome do curso"
-                value={curso}
-                onChangeText={setCurso}
-              />
-
-
-              <Text style={styles.inputLabel}>
-                Período
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ex.: Manhã"
-                value={periodo}
-                onChangeText={setPeriodo}
-              />
-
-
-              <Text style={styles.inputLabel}>
-                Ano
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ex.: 2026"
-                value={ano}
-                onChangeText={setAno}
-                keyboardType="numeric"
-              />
-
-
-              <View style={styles.modalButtons}>
-
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() =>
-                    setModalVisivel(false)
-                  }
-                >
-
-                  <Text style={styles.cancelButtonText}>
-                    Cancelar
-                  </Text>
-
-                </TouchableOpacity>
-
-
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={salvarTurma}
-                >
-
-                  <Text style={styles.saveButtonText}>
-                    Salvar
-                  </Text>
-
-                </TouchableOpacity>
-
-              </View>
-
-            </ScrollView>
-
-          </View>
-
-        </View>
-
-      </Modal>
-
-    </View>
-
-  );
-
-}
-
-function CursosScreen() {
-
-  const {
-    cursos,
-    adicionarCurso
-  } = useScholar();
-
-  const [modalVisivel, setModalVisivel] =
-    useState(false);
-
-  const [nome, setNome] =
-    useState('');
-
-  const [area, setArea] =
-    useState('');
-
-  const [duracao, setDuracao] =
-    useState('');
-
-
-  const salvarCurso = () => {
-
-    if (!nome.trim()) {
-
-      Alert.alert(
-        'Atenção',
-        'Informe o nome do curso.'
-      );
-
-      return;
-    }
-
-
-    adicionarCurso({
-
-      nome: nome.trim(),
-
-      area:
-        area.trim() ||
-        'Não informada',
-
-      duracao:
-        duracao.trim() ||
-        'Não informada',
-
-      status: 'A'
-
-    });
-
-
-    setNome('');
-    setArea('');
-    setDuracao('');
-
-    setModalVisivel(false);
-
-
-    Alert.alert(
-      'Sucesso',
-      'Curso cadastrado com sucesso.'
-    );
-
-  };
-
-
-  return (
-
-    <View style={styles.container}>
-
-      <View style={styles.header}>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.headerTitle}>
-            Cursos
-          </Text>
-
-          <Text style={styles.headerSubtitle}>
-            Gerenciamento de cursos
-          </Text>
-
-        </View>
-
-
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() =>
-            setModalVisivel(true)
-          }
-        >
-
-          <Ionicons
-            name="add"
-            size={27}
-            color="#fff"
-          />
-
-        </TouchableOpacity>
-
-      </View>
-
-
-      <FlatList
-        data={cursos}
-        keyExtractor={item =>
-          String(item.id)
-        }
-        contentContainerStyle={{
-          padding: 16,
-          paddingBottom: 30
-        }}
-        ListEmptyComponent={
-
-          <View style={styles.emptyContainer}>
-
-            <Ionicons
-              name="library-outline"
-              size={50}
-              color="#999"
-            />
-
-            <Text style={styles.emptyTitle}>
-              Nenhum curso cadastrado
-            </Text>
-
-          </View>
-
-        }
-        renderItem={({ item }) => (
-
-          <View style={styles.card}>
-
-            <View style={styles.cardIcon}>
-
-              <Ionicons
-                name="library"
-                size={25}
-                color="#0891b2"
-              />
-
-            </View>
-
-
-            <View style={{ flex: 1 }}>
-
-              <Text style={styles.cardTitle}>
-                {item.nome}
-              </Text>
-
-              <Text style={styles.cardText}>
-                Área: {item.area}
-              </Text>
-
-              <Text style={styles.cardText}>
-                Duração: {item.duracao}
-              </Text>
-
-
-              <View style={styles.statusBadge}>
-
-                <Text style={styles.statusText}>
-                  ATIVO
-                </Text>
-
-              </View>
-
-            </View>
-
-          </View>
-
-        )}
-
-      />
-
-
-      <Modal
-        visible={modalVisivel}
-        transparent
-        animationType="slide"
-        onRequestClose={() =>
-          setModalVisivel(false)
-        }
-      >
-
-        <View style={styles.modalOverlay}>
-
-          <View style={styles.modalContainer}>
-
-            <ScrollView>
-
-              <Text style={styles.modalTitle}>
-                Novo Curso
-              </Text>
-
-
-              <Text style={styles.inputLabel}>
-                Nome do curso *
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ex.: Administração"
-                value={nome}
-                onChangeText={setNome}
-              />
-
-
-              <Text style={styles.inputLabel}>
-                Área
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ex.: Gestão"
-                value={area}
-                onChangeText={setArea}
-              />
-
-
-              <Text style={styles.inputLabel}>
-                Duração
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ex.: 3 anos"
-                value={duracao}
-                onChangeText={setDuracao}
-              />
-
-
-              <View style={styles.modalButtons}>
-
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() =>
-                    setModalVisivel(false)
-                  }
-                >
-
-                  <Text style={styles.cancelButtonText}>
-                    Cancelar
-                  </Text>
-
-                </TouchableOpacity>
-
-
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={salvarCurso}
-                >
-
-                  <Text style={styles.saveButtonText}>
-                    Salvar
-                  </Text>
-
-                </TouchableOpacity>
-
-              </View>
-
-            </ScrollView>
-
-          </View>
-
-        </View>
-
-      </Modal>
-
-    </View>
-
-  );
-
-}
-
-
-function DisciplinasScreen() {
-
-  const {
-    disciplinas,
-    adicionarDisciplina
-  } = useScholar();
-
-  const [modalVisivel, setModalVisivel] =
-    useState(false);
-
-  const [nome, setNome] =
-    useState('');
-
-  const [codigo, setCodigo] =
-    useState('');
-
-  const [cargaHoraria, setCargaHoraria] =
-    useState('');
-
-
-  const salvarDisciplina = () => {
-
-    if (!nome.trim()) {
-
-      Alert.alert(
-        'Atenção',
-        'Informe o nome da disciplina.'
-      );
-
-      return;
-    }
-
-
-    adicionarDisciplina({
-
-      nome: nome.trim(),
-
-      codigo:
-        codigo.trim() ||
-        `DISC${Date.now()}`,
-
-      cargaHoraria:
-        cargaHoraria.trim() ||
-        'Não informada',
-
-      status: 'A'
-
-    });
-
-
-    setNome('');
-    setCodigo('');
-    setCargaHoraria('');
-
-    setModalVisivel(false);
-
-
-    Alert.alert(
-      'Sucesso',
-      'Disciplina cadastrada com sucesso.'
-    );
-
-  };
-
-
-  return (
-
-    <View style={styles.container}>
-
-      <View style={styles.header}>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.headerTitle}>
-            Disciplinas
-          </Text>
-
-          <Text style={styles.headerSubtitle}>
-            Gerenciamento de disciplinas
-          </Text>
-
-        </View>
-
-
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() =>
-            setModalVisivel(true)
-          }
-        >
-
-          <Ionicons
-            name="add"
-            size={27}
-            color="#fff"
-          />
-
-        </TouchableOpacity>
-
-      </View>
-
-
-      <FlatList
-        data={disciplinas}
-        keyExtractor={item =>
-          String(item.id)
-        }
-        contentContainerStyle={{
-          padding: 16,
-          paddingBottom: 30
-        }}
-        ListEmptyComponent={
-
-          <View style={styles.emptyContainer}>
-
-            <Ionicons
-              name="book-outline"
-              size={50}
-              color="#999"
-            />
-
-            <Text style={styles.emptyTitle}>
-              Nenhuma disciplina cadastrada
-            </Text>
-
-          </View>
-
-        }
-        renderItem={({ item }) => (
-
-          <View style={styles.card}>
-
-            <View style={styles.cardIcon}>
-
-              <Ionicons
-                name="book"
-                size={25}
-                color="#dc2626"
-              />
-
-            </View>
-
-
-            <View style={{ flex: 1 }}>
-
-              <Text style={styles.cardTitle}>
-                {item.nome}
-              </Text>
-
-              <Text style={styles.cardText}>
-                Código: {item.codigo}
-              </Text>
-
-              <Text style={styles.cardText}>
-                Carga horária: {item.cargaHoraria}
-              </Text>
-
-
-              <View style={styles.statusBadge}>
-
-                <Text style={styles.statusText}>
-                  ATIVA
-                </Text>
-
-              </View>
-
-            </View>
-
-          </View>
-
-        )}
-
-      />
-
-
-      <Modal
-        visible={modalVisivel}
-        transparent
-        animationType="slide"
-        onRequestClose={() =>
-          setModalVisivel(false)
-        }
-      >
-
-        <View style={styles.modalOverlay}>
-
-          <View style={styles.modalContainer}>
-
-            <ScrollView>
-
-              <Text style={styles.modalTitle}>
-                Nova Disciplina
-              </Text>
-
-
-              <Text style={styles.inputLabel}>
-                Nome da disciplina *
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ex.: Matemática"
-                value={nome}
-                onChangeText={setNome}
-              />
-
-
-              <Text style={styles.inputLabel}>
-                Código
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ex.: MAT101"
-                value={codigo}
-                onChangeText={setCodigo}
-              />
-
-
-              <Text style={styles.inputLabel}>
-                Carga horária
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ex.: 80h"
-                value={cargaHoraria}
-                onChangeText={setCargaHoraria}
-              />
-
-
-              <View style={styles.modalButtons}>
-
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() =>
-                    setModalVisivel(false)
-                  }
-                >
-
-                  <Text style={styles.cancelButtonText}>
-                    Cancelar
-                  </Text>
-
-                </TouchableOpacity>
-
-
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={salvarDisciplina}
-                >
-
-                  <Text style={styles.saveButtonText}>
-                    Salvar
-                  </Text>
-
-                </TouchableOpacity>
-
-              </View>
-
-            </ScrollView>
-
-          </View>
-
-        </View>
-
-      </Modal>
-
-    </View>
-
-  );
-
-}
-
-
-
-function AvaliacoesScreen() {
-
-  const {
-    avaliacoes,
-    adicionarAvaliacao,
-    alunos,
-    disciplinas
-  } = useScholar();
-
-
-  const [modalVisivel, setModalVisivel] =
-    useState(false);
-
-  const [alunoId, setAlunoId] =
-    useState('');
-
-  const [disciplina, setDisciplina] =
-    useState('');
-
-  const [nota, setNota] =
-    useState('');
-
-  const [tipo, setTipo] =
-    useState('');
-
-  const [data, setData] =
-    useState('');
-
-
-  const limparFormulario = () => {
-
-    setAlunoId('');
-    setDisciplina('');
-    setNota('');
-    setTipo('');
-    setData('');
-
-  };
-
-
-  const salvarAvaliacao = () => {
-
-    if (
-      !alunoId ||
-      !disciplina ||
-      !nota
-    ) {
-
-      Alert.alert(
-        'Atenção',
-        'Preencha aluno, disciplina e nota.'
-      );
-
-      return;
-
-    }
-
-
-    const notaNumero =
-      Number(
-        String(nota).replace(',', '.')
-      );
-
-
-    if (
-      Number.isNaN(notaNumero) ||
-      notaNumero < 0 ||
-      notaNumero > 10
-    ) {
-
-      Alert.alert(
-        'Atenção',
-        'A nota deve estar entre 0 e 10.'
-      );
-
-      return;
-
-    }
-
-
-    const alunoSelecionado =
-      alunos.find(
-        item =>
-          String(item.id) ===
-          String(alunoId)
-      );
-
-
-    adicionarAvaliacao({
-
-      alunoId,
-
-      aluno:
-        alunoSelecionado
-          ? alunoSelecionado.nome
-          : 'Aluno',
-
-      disciplina,
-
-      nota:
-        notaNumero.toFixed(1),
-
-      tipo:
-        tipo.trim() ||
-        'Avaliação',
-
-      data:
-        data.trim() ||
-        new Date().toLocaleDateString(
-          'pt-BR'
-        )
-
-    });
-
-
-    limparFormulario();
-
-    setModalVisivel(false);
-
-
-    Alert.alert(
-      'Sucesso',
-      'Avaliação cadastrada com sucesso.'
-    );
-
-  };
-
-
-  return (
-
-    <View style={styles.container}>
-
-      <View style={styles.header}>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.headerTitle}>
-            Avaliações
-          </Text>
-
-          <Text style={styles.headerSubtitle}>
-            Notas e avaliações dos alunos
-          </Text>
-
-        </View>
-
-
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() =>
-            setModalVisivel(true)
-          }
-        >
-
-          <Ionicons
-            name="add"
-            size={27}
-            color="#fff"
-          />
-
-        </TouchableOpacity>
-
-      </View>
-
-
-      <FlatList
-        data={avaliacoes}
-        keyExtractor={item =>
-          String(item.id)
-        }
-        contentContainerStyle={{
-          padding: 16,
-          paddingBottom: 30
-        }}
-        ListEmptyComponent={
-
-          <View style={styles.emptyContainer}>
-
-            <Ionicons
-              name="clipboard-outline"
-              size={50}
-              color="#999"
-            />
-
-            <Text style={styles.emptyTitle}>
-              Nenhuma avaliação cadastrada
-            </Text>
-
-          </View>
-
-        }
-        renderItem={({ item }) => (
-
-          <View style={styles.card}>
-
-            <View style={{ flex: 1 }}>
-
-              <Text style={styles.cardTitle}>
-                {item.aluno}
-              </Text>
-
-              <Text style={styles.cardText}>
-                Disciplina: {item.disciplina}
-              </Text>
-
-              <Text style={styles.cardText}>
-                Tipo: {item.tipo}
-              </Text>
-
-              <Text style={styles.cardText}>
-                Data: {item.data}
-              </Text>
-
-            </View>
-
-
-            <View style={styles.gradeCircle}>
-
-              <Text style={styles.gradeCircleText}>
-                {Number(item.nota).toFixed(1)}
-              </Text>
-
-            </View>
-
-          </View>
-
-        )}
-
-      />
-
-
-      <Modal
-        visible={modalVisivel}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
-
-          setModalVisivel(false);
-
-          limparFormulario();
-
-        }}
-      >
-
-        <View style={styles.modalOverlay}>
-
-          <View style={styles.modalContainer}>
-
-            <ScrollView>
-
-              <Text style={styles.modalTitle}>
-                Nova Avaliação
-              </Text>
-
-
-              <Text style={styles.inputLabel}>
-                Aluno *
-              </Text>
-
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{
-                  marginBottom: 12
-                }}
-              >
-
-                {alunos.map(item => (
-
-                  <TouchableOpacity
-                    key={item.id}
-                    style={[
-                      styles.choiceButton,
-
-                      String(alunoId) ===
-                        String(item.id) &&
-                        styles.choiceButtonSelected
-                    ]}
-                    onPress={() =>
-                      setAlunoId(
-                        String(item.id)
-                      )
-                    }
-                  >
-
-                    <Text
-                      style={[
-                        styles.choiceButtonText,
-
-                        String(alunoId) ===
-                          String(item.id) &&
-                          styles.choiceButtonTextSelected
-                      ]}
-                    >
-                      {item.nome}
-                    </Text>
-
-                  </TouchableOpacity>
-
-                ))}
-
-              </ScrollView>
-
-
-              <Text style={styles.inputLabel}>
-                Disciplina *
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Nome da disciplina"
-                value={disciplina}
-                onChangeText={setDisciplina}
-              />
-
-
-              {disciplinas.length > 0 && (
-
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={{
-                    marginBottom: 12
-                  }}
-                >
-
-                  {disciplinas.map(item => (
-
-                    <TouchableOpacity
-                      key={item.id}
-                      style={[
-                        styles.choiceButton,
-
-                        disciplina === item.nome &&
-                          styles.choiceButtonSelected
-                      ]}
-                      onPress={() =>
-                        setDisciplina(
-                          item.nome
-                        )
-                      }
-                    >
-
-                      <Text
-                        style={[
-                          styles.choiceButtonText,
-
-                          disciplina === item.nome &&
-                            styles.choiceButtonTextSelected
-                        ]}
-                      >
-                        {item.nome}
-                      </Text>
-
-                    </TouchableOpacity>
-
-                  ))}
-
-                </ScrollView>
-
-              )}
-
-
-              <Text style={styles.inputLabel}>
-                Nota *
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="0 a 10"
-                value={nota}
-                onChangeText={setNota}
-                keyboardType="decimal-pad"
-              />
-
-
-              <Text style={styles.inputLabel}>
-                Tipo
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ex.: Prova"
-                value={tipo}
-                onChangeText={setTipo}
-              />
-
-
-              <Text style={styles.inputLabel}>
-                Data
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ex.: 24/09/2026"
-                value={data}
-                onChangeText={setData}
-              />
-
-
-              <View style={styles.modalButtons}>
-
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => {
-
-                    setModalVisivel(false);
-
-                    limparFormulario();
-
-                  }}
-                >
-
-                  <Text style={styles.cancelButtonText}>
-                    Cancelar
-                  </Text>
-
-                </TouchableOpacity>
-
-
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={salvarAvaliacao}
-                >
-
-                  <Text style={styles.saveButtonText}>
-                    Salvar
-                  </Text>
-
-                </TouchableOpacity>
-
-              </View>
-
-            </ScrollView>
-
-          </View>
-
-        </View>
-
-      </Modal>
-
-    </View>
-
-  );
-
-}
-
-
-function BoletimScreen() {
-
-  const {
-    alunos,
-    avaliacoes
-  } = useScholar();
-
-
-  const [
-    alunoSelecionado,
-    setAlunoSelecionado
-  ] = useState('');
-
-
-  const avaliacoesAluno =
-    avaliacoes.filter(
-      avaliacao =>
-        String(
-          avaliacao.alunoId
-        ) ===
-        String(
-          alunoSelecionado
-        )
-    );
-
-
-  const media =
-    avaliacoesAluno.length > 0
-      ? avaliacoesAluno.reduce(
-          (
-            total,
-            item
-          ) =>
-            total +
-            Number(
-              item.nota || 0
-            ),
-          0
-        ) /
-        avaliacoesAluno.length
-      : 0;
-
-
-  const aluno =
-    alunos.find(
-      item =>
-        String(item.id) ===
-        String(alunoSelecionado)
-    );
-
-
-  return (
-
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{
-        paddingBottom: 30
-      }}
-    >
-
-      <View style={styles.header}>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.headerTitle}>
-            Boletim
-          </Text>
-
-          <Text style={styles.headerSubtitle}>
-            Consulte o desempenho acadêmico
-          </Text>
-
-        </View>
-
-      </View>
-
-
-      <Text style={styles.sectionTitle}>
-        Selecione o aluno
-      </Text>
-
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{
-          paddingHorizontal: 16
-        }}
-      >
-
-        {alunos.map(item => (
-
           <TouchableOpacity
-            key={item.id}
             style={[
-              styles.choiceButton,
-
-              String(alunoSelecionado) ===
-                String(item.id) &&
-                styles.choiceButtonSelected
+              styles.navChip,
+              abaAtiva === 'dashboard' && styles.navChipActive,
             ]}
-            onPress={() =>
-              setAlunoSelecionado(
-                String(item.id)
-              )
-            }
+            onPress={() => {
+              setAbaAtiva('dashboard');
+              setBusca('');
+            }}
           >
-
+            <Ionicons
+              name="apps"
+              size={14}
+              color={abaAtiva === 'dashboard' ? '#1E3A8A' : '#DBEAFE'}
+            />
             <Text
               style={[
-                styles.choiceButtonText,
-
-                String(alunoSelecionado) ===
-                  String(item.id) &&
-                  styles.choiceButtonTextSelected
+                styles.navChipText,
+                abaAtiva === 'dashboard' && styles.navChipTextActive,
               ]}
             >
-              {item.nome}
+              Painel Geral
             </Text>
-
           </TouchableOpacity>
 
-        ))}
+          {TABELAS.map((tab) => {
+            const ativo = abaAtiva === tab.id;
+            const qtd = (dados[tab.id] || []).length;
+            return (
+              <TouchableOpacity
+                key={tab.id}
+                style={[styles.navChip, ativo && styles.navChipActive]}
+                onPress={() => {
+                  setAbaAtiva(tab.id);
+                  setBusca('');
+                }}
+              >
+                <Ionicons
+                  name={tab.icone}
+                  size={14}
+                  color={ativo ? '#1E3A8A' : '#DBEAFE'}
+                />
+                <Text
+                  style={[
+                    styles.navChipText,
+                    ativo && styles.navChipTextActive,
+                  ]}
+                >
+                  {tab.nome} ({qtd})
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
-      </ScrollView>
-
-
-      {aluno && (
-
-        <View style={styles.reportHeader}>
-
-          <View style={styles.studentAvatar}>
-
-            <Text style={styles.studentAvatarText}>
-              {aluno.nome
-                .charAt(0)
-                .toUpperCase()}
-            </Text>
-
-          </View>
-
-
-          <View style={{ flex: 1 }}>
-
-            <Text style={styles.studentName}>
-              {aluno.nome}
-            </Text>
-
-            <Text style={styles.studentInfo}>
-              RA: {aluno.ra}
-            </Text>
-
-            <Text style={styles.studentInfo}>
-              Curso: {aluno.curso}
-            </Text>
-
-            <Text style={styles.studentInfo}>
-              Turma: {aluno.turma}
-            </Text>
-
-          </View>
-
-        </View>
-
-      )}
-
-
-      {alunoSelecionado ? (
-
-        <>
-
-          <View style={styles.averageCard}>
-
-            <Text style={styles.averageLabel}>
-              Média geral
-            </Text>
-
-            <Text style={styles.averageValue}>
-              {media.toFixed(1)}
-            </Text>
-
-            <Text style={styles.averageStatus}>
-              {media >= 6
-                ? 'Aproveitamento satisfatório'
-                : 'Abaixo da média'}
-            </Text>
-
-          </View>
-
-
-          <Text style={styles.sectionTitle}>
-            Avaliações
-          </Text>
-
-
-          {avaliacoesAluno.length === 0 ? (
-
-            <View style={styles.emptyContainer}>
-
-              <Ionicons
-                name="document-outline"
-                size={45}
-                color="#999"
-              />
-
-              <Text style={styles.emptyTitle}>
-                Nenhuma avaliação encontrada
+      {/* Conteúdo Principal */}
+      {abaAtiva === 'dashboard' ? (
+        <ScrollView contentContainerStyle={styles.content}>
+          {/* Resumo Geral */}
+          <View style={styles.summaryCard}>
+            <View>
+              <Text style={styles.summaryLabel}>BANCO DE DADOS CONECTADO</Text>
+              <Text style={styles.summaryTitle}>
+                14 Tabelas • {totalRegistros} Registros
               </Text>
+              <Text style={styles.summaryDesc}>
+                Selecione qualquer tabela abaixo para adicionar, editar ou excluir registros.
+              </Text>
+            </View>
+            <View style={styles.summaryBadge}>
+              <Ionicons name="server" size={26} color="#2563EB" />
+            </View>
+          </View>
 
+          <Text style={styles.sectionTitle}>Todas as Tabelas do Sistema</Text>
+
+          <View style={styles.grid}>
+            {TABELAS.map((tab) => {
+              const qtd = (dados[tab.id] || []).length;
+              return (
+                <TouchableOpacity
+                  key={tab.id}
+                  style={styles.tableCard}
+                  onPress={() => setAbaAtiva(tab.id)}
+                >
+                  <View style={styles.tableCardTop}>
+                    <View
+                      style={[
+                        styles.tableIconBox,
+                        { backgroundColor: `${tab.cor}18` },
+                      ]}
+                    >
+                      <Ionicons name={tab.icone} size={20} color={tab.cor} />
+                    </View>
+                    <View style={styles.countBadge}>
+                      <Text style={styles.countBadgeText}>
+                        {qtd} {qtd === 1 ? 'linha' : 'linhas'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.tableCardTitle}>{tab.nome}</Text>
+                  <Text style={styles.tableCardSub}>tabela: {tab.tabela}</Text>
+
+                  <View style={styles.tableCardFooter}>
+                    <Text style={[styles.gerenciarLink, { color: tab.cor }]}>
+                      Gerenciar CRUD →
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </ScrollView>
+      ) : (
+        /* Tela da Tabela Selecionada com CRUD Completo */
+        <View style={styles.tableContainer}>
+          {/* Barra de Título e Botão ADICIONAR */}
+          <View style={styles.tableHeaderBar}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.activeTableTitle}>{tabelaAtual.nome}</Text>
+              <Text style={styles.activeTableSub}>
+                Tabela `{tabelaAtual.tabela}` • {registrosFiltrados.length}{' '}
+                registro(s)
+              </Text>
             </View>
 
-          ) : (
+            <TouchableOpacity
+              style={[styles.btnAdd, { backgroundColor: tabelaAtual.cor }]}
+              onPress={abrirAdicionar}
+            >
+              <Ionicons name="add-circle" size={18} color="#FFFFFF" />
+              <Text style={styles.btnAddText}>Adicionar</Text>
+            </TouchableOpacity>
+          </View>
 
-            avaliacoesAluno.map(
-              item => (
+          {/* Campo de Busca */}
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={18} color="#64748B" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={`Buscar em ${tabelaAtual.nome}...`}
+              placeholderTextColor="#94A3B8"
+              value={busca}
+              onChangeText={setBusca}
+            />
+            {busca.length > 0 && (
+              <TouchableOpacity onPress={() => setBusca('')}>
+                <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            )}
+          </View>
 
-                <View
-                  key={item.id}
-                  style={styles.card}
+          {/* Lista de Registros com botões EDITAR e EXCLUIR */}
+          <ScrollView contentContainerStyle={styles.listScroll}>
+            {registrosFiltrados.length === 0 ? (
+              <View style={styles.emptyBox}>
+                <Ionicons
+                  name={tabelaAtual.icone}
+                  size={40}
+                  color="#CBD5E1"
+                />
+                <Text style={styles.emptyTitle}>
+                  Nenhum registro encontrado
+                </Text>
+                <Text style={styles.emptyDesc}>
+                  Toque em "Adicionar" para inserir o primeiro registro na tabela{' '}
+                  {tabelaAtual.tabela}.
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.btnAddEmpty,
+                    { backgroundColor: tabelaAtual.cor },
+                  ]}
+                  onPress={abrirAdicionar}
                 >
+                  <Ionicons name="add" size={18} color="#FFFFFF" />
+                  <Text style={styles.btnAddText}>Novo Registro</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              registrosFiltrados.map((item, idx) => (
+                <View key={item.id} style={styles.recordCard}>
+                  <View style={styles.recordHeader}>
+                    <View style={styles.recordIdBadge}>
+                      <Text style={styles.recordIdText}>#{idx + 1}</Text>
+                    </View>
 
-                  <View style={{ flex: 1 }}>
+                    {/* Botões de Ação: EDITAR e EXCLUIR */}
+                    <View style={styles.actionRow}>
+                      <TouchableOpacity
+                        style={styles.btnEdit}
+                        onPress={() => abrirEditar(item)}
+                      >
+                        <Ionicons name="create-outline" size={15} color="#2563EB" />
+                        <Text style={styles.btnEditText}>Editar</Text>
+                      </TouchableOpacity>
 
-                    <Text style={styles.cardTitle}>
-                      {item.disciplina}
-                    </Text>
-
-                    <Text style={styles.cardText}>
-                      {item.tipo}
-                    </Text>
-
-                    <Text style={styles.cardText}>
-                      {item.data}
-                    </Text>
-
+                      <TouchableOpacity
+                        style={styles.btnDelete}
+                        onPress={() => setItemExcluindo(item)}
+                      >
+                        <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                        <Text style={styles.btnDeleteText}>Excluir</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
 
-
-                  <View style={styles.gradeCircle}>
-
-                    <Text style={styles.gradeCircleText}>
-                      {Number(
-                        item.nota
-                      ).toFixed(1)}
-                    </Text>
-
+                  <View style={styles.fieldsList}>
+                    {tabelaAtual.campos.map((campo) => (
+                      <View key={campo.key} style={styles.fieldRow}>
+                        <Text style={styles.fieldLabel}>{campo.label}:</Text>
+                        <Text style={styles.fieldValue}>
+                          {item[campo.key] ? String(item[campo.key]) : '—'}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
-
                 </View>
-
-              )
-            )
-
-          )}
-
-        </>
-
-      ) : (
-
-        <View style={styles.emptyContainer}>
-
-          <Ionicons
-            name="school-outline"
-            size={55}
-            color="#999"
-          />
-
-          <Text style={styles.emptyTitle}>
-            Selecione um aluno
-          </Text>
-
-          <Text style={styles.emptyText}>
-            Escolha um aluno para visualizar o boletim.
-          </Text>
-
+              ))
+            )}
+          </ScrollView>
         </View>
-
       )}
 
-    </ScrollView>
+      {/* Modal de ADICIONAR / EDITAR */}
+      <Modal
+        visible={modalFormVisivel}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalFormVisivel(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {itemEditando
+                  ? `Editar em ${tabelaAtual?.nome}`
+                  : `Adicionar em ${tabelaAtual?.nome}`}
+              </Text>
+              <TouchableOpacity onPress={() => setModalFormVisivel(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
 
+            {erroForm ? (
+              <View style={styles.errorBanner}>
+                <Ionicons name="alert-circle" size={16} color="#DC2626" />
+                <Text style={styles.errorText}>{erroForm}</Text>
+              </View>
+            ) : null}
+
+            <ScrollView style={styles.modalBody}>
+              {tabelaAtual?.campos.map((campo) => (
+                <View key={campo.key} style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>
+                    {campo.label} {campo.obrigatorio ? '*' : ''}
+                  </Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder={campo.placeholder}
+                    placeholderTextColor="#94A3B8"
+                    value={formValores[campo.key] || ''}
+                    onChangeText={(texto) =>
+                      setFormValores((prev) => ({
+                        ...prev,
+                        [campo.key]: texto,
+                      }))
+                    }
+                  />
+                </View>
+              ))}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.btnCancel}
+                onPress={() => setModalFormVisivel(false)}
+              >
+                <Text style={styles.btnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.btnSave,
+                  { backgroundColor: tabelaAtual?.cor || '#2563EB' },
+                ]}
+                onPress={salvarRegistro}
+              >
+                <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                <Text style={styles.btnSaveText}>Salvar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Confirmação de EXCLUSÃO */}
+      <Modal
+        visible={Boolean(itemExcluindo)}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setItemExcluindo(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.confirmCard}>
+            <View style={styles.confirmIcon}>
+              <Ionicons name="trash" size={28} color="#DC2626" />
+            </View>
+            <Text style={styles.confirmTitle}>Excluir Registro?</Text>
+            <Text style={styles.confirmDesc}>
+              Tem certeza que deseja remover este item da tabela{' '}
+              <Text style={{ fontWeight: '700' }}>{tabelaAtual?.tabela}</Text>?
+              Esta ação não pode ser desfeita.
+            </Text>
+
+            <View style={styles.confirmActions}>
+              <TouchableOpacity
+                style={styles.btnCancel}
+                onPress={() => setItemExcluindo(null)}
+              >
+                <Text style={styles.btnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.btnConfirmDelete}
+                onPress={confirmarExclusao}
+              >
+                <Text style={styles.btnSaveText}>Sim, Excluir</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
-
 }
-
-
-function SobreScreen() {
-
-  return (
-
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{
-        paddingBottom: 40
-      }}
-    >
-
-      <View style={styles.header}>
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={styles.headerTitle}>
-            Sobre
-          </Text>
-
-          <Text style={styles.headerSubtitle}>
-            Informações do sistema
-          </Text>
-
-        </View>
-
-      </View>
-
-
-      <View style={styles.aboutCard}>
-
-        <View style={styles.aboutIcon}>
-
-          <Ionicons
-            name="school"
-            size={55}
-            color="#2563eb"
-          />
-
-        </View>
-
-
-        <Text style={styles.aboutTitle}>
-          App Scholar
-        </Text>
-
-
-        <Text style={styles.aboutVersion}>
-          Versão 1.0.0
-        </Text>
-
-
-        <Text style={styles.aboutText}>
-          Sistema de gestão acadêmica desenvolvido
-          para facilitar o gerenciamento de alunos,
-          professores, coordenadores, responsáveis,
-          cursos, turmas, disciplinas, avaliações
-          e boletins.
-        </Text>
-
-      </View>
-
-
-      <View style={styles.aboutInfoCard}>
-
-        <Text style={styles.aboutInfoTitle}>
-          Funcionalidades
-        </Text>
-
-
-        <View style={styles.aboutRow}>
-
-          <Ionicons
-            name="people-outline"
-            size={23}
-            color="#2563eb"
-          />
-
-          <Text style={styles.aboutRowText}>
-            Gerenciamento de alunos
-          </Text>
-
-        </View>
-
-
-        <View style={style.aboutRowText}>
-        ={styles.aboutRow}>
-
-          <Ionicons
-            name="person-outline"
-            size={23}
-            color="#16a34a"
-          />
-
-          <Text style={styles.aboutRowText}>
-            Gerenciamento de professores
-          </Text>
-
-        </View>
-
-
-        <View style={styles.aboutRow}>
-
-          <Ionicons
-            name="school-outline"
-            size={23}
-            color="#9333ea"
-          />
-
-          <Text style={styles.aboutRowText}>
-            Gerenciamento de turmas e cursos
-          </Text>
-
-        </View>
-
-
-        <View style={styles.aboutRow}>
-
-          <Ionicons
-            name="book-outline"
-            size={23}
-            color="#dc2626"
-          />
-
-          <Text style={styles.aboutRowText}>
-            Gerenciamento de disciplinas
-          </Text>
-
-        </View>
-
-
-        <View style={styles.aboutRow}>
-
-          <Ionicons
-            name="clipboard-outline"
-            size={23}
-            color="#ea580c"
-          />
-
-          <Text style={styles.aboutRowText}>
-            Avaliações e boletins
-          </Text>
-
-        </View>
-
-      </View>
-
-
-      <View style={styles.aboutInfoCard}>
-
-        <Text style={styles.aboutInfoTitle}>
-          Tecnologia
-        </Text>
-
-
-        <Text style={styles.aboutText}>
-          Aplicação desenvolvida com React Native
-          e Expo, utilizando navegação entre telas,
-          gerenciamento de estado e integração
-          com API PHP/MySQL.
-        </Text>
-
-      </View>
-
-    </ScrollView>
-
-  );
-
-}
-
-
-
-const Stack =
-  createNativeStackNavigator();
-
-const Tab =
-  createBottomTabNavigator();
-
-
-
-function MainTabs() {
-
-  return (
-
-    <Tab.Navigator
-
-      screenOptions={({ route }) => ({
-
-        headerShown: false,
-
-        tabBarActiveTintColor:
-          '#2563eb',
-
-        tabBarInactiveTintColor:
-          '#777',
-
-        tabBarStyle: {
-          height: 65,
-          paddingBottom: 8,
-          paddingTop: 5
-        },
-
-        tabBarLabelStyle: {
-          fontSize: 11
-        },
-
-
-        tabBarIcon: ({
-          color,
-          size
-        }) => {
-
-          let nome =
-            'home-outline';
-
-
-          if (
-            route.name === 'Início'
-          ) {
-
-            nome =
-              'home-outline';
-
-          }
-
-
-          if (
-            route.name === 'Alunos'
-          ) {
-
-            nome =
-              'people-outline';
-
-          }
-
-
-          if (
-            route.name === 'Turmas'
-          ) {
-
-            nome =
-              'school-outline';
-
-          }
-
-
-          if (
-            route.name === 'Boletim'
-          ) {
-
-            nome =
-              'document-text-outline';
-
-          }
-
-
-          if (
-            route.name === 'Sobre'
-          ) {
-
-            nome =
-              'information-circle-outline';
-
-          }
-
-
-          return (
-
-            <Ionicons
-              name={nome}
-              size={size}
-              color={color}
-            />
-
-          );
-
-        }
-
-      })}
-
-    >
-
-      <Tab.Screen
-        name="Início"
-        component={HomeScreen}
-      />
-
-      <Tab.Screen
-        name="Alunos"
-        component={AlunosScreen}
-      />
-
-      <Tab.Screen
-        name="Turmas"
-        component={TurmasScreen}
-      />
-
-      <Tab.Screen
-        name="Boletim"
-        component={BoletimScreen}
-      />
-
-      <Tab.Screen
-        name="Sobre"
-        component={SobreScreen}
-      />
-
-    </Tab.Navigator>
-
-  );
-
-}
-
-
-function AppNavigator() {
-
-  return (
-
-    <NavigationContainer>
-
-      <Stack.Navigator>
-
-        <Stack.Screen
-          name="Principal"
-          component={MainTabs}
-          options={{
-            headerShown: false
-          }}
-        />
-
-
-        <Stack.Screen
-          name="Professores"
-          component={ProfessoresScreen}
-          options={{
-            title: 'Professores'
-          }}
-        />
-
-
-        <Stack.Screen
-          name="Coordenadores"
-          component={CoordenadoresScreen}
-          options={{
-            title: 'Coordenadores'
-          }}
-        />
-
-
-        <Stack.Screen
-          name="Responsáveis"
-          component={ResponsaveisScreen}
-          options={{
-            title: 'Responsáveis'
-          }}
-        />
-
-
-        <Stack.Screen
-          name="Matrículas"
-          component={MatriculasScreen}
-          options={{
-            title: 'Matrículas'
-          }}
-        />
-
-
-        <Stack.Screen
-          name="Cursos"
-          component={CursosScreen}
-          options={{
-            title: 'Cursos'
-          }}
-        />
-
-
-        <Stack.Screen
-          name="Disciplinas"
-          component={DisciplinasScreen}
-          options={{
-            title: 'Disciplinas'
-          }}
-        />
-
-
-        <Stack.Screen
-          name="Avaliações"
-          component={AvaliacoesScreen}
-          options={{
-            title: 'Avaliações'
-          }}
-        />
-
-      </Stack.Navigator>
-
-    </NavigationContainer>
-
-  );
-
-}
-
-
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
-    backgroundColor: '#f5f7fb'
+    backgroundColor: '#F1F5F9',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
-
-
   header: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 18,
+    backgroundColor: '#1E3A8A',
+    paddingTop: 14,
+    paddingBottom: 12,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
+    elevation: 4,
+  },
+  headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb'
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 12,
   },
-
-
-  headerTitle: {
-    fontSize: 25,
-    fontWeight: '800',
-    color: '#111827'
-  },
-
-
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4
-  },
-
-
-  headerButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#2563eb',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-
-
-  welcomeCard: {
-    margin: 16,
-    padding: 20,
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
+  logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: {
-      width: 0,
-      height: 2
-    }
+    gap: 10,
   },
-
-
-  welcomeIcon: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#eff6ff',
+  logoIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 15
   },
-
-
-  welcomeTitle: {
-    fontSize: 21,
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
     fontWeight: '800',
-    color: '#111827',
-    marginBottom: 5
+    letterSpacing: 0.5,
   },
-
-
-  welcomeText: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: '#6b7280'
+  headerSubtitle: {
+    color: '#BFDBFE',
+    fontSize: 12,
   },
-
-
+  btnHome: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+  btnHomeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  navScroll: {
+    paddingHorizontal: 14,
+    gap: 8,
+  },
+  navChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    marginRight: 8,
+  },
+  navChipActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  navChipText: {
+    color: '#EFF6FF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  navChipTextActive: {
+    color: '#1E3A8A',
+    fontWeight: '700',
+  },
+  content: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  summaryCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  summaryLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2563EB',
+    marginBottom: 4,
+  },
+  summaryTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  summaryDesc: {
+    fontSize: 12,
+    color: '#64748B',
+    maxWidth: 240,
+  },
+  summaryBadge: {
+    width: 50,
+    height: 50,
+    borderRadius: 14,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   sectionTitle: {
-    fontSize: 19,
-    fontWeight: '800',
-    color: '#111827',
-    marginHorizontal: 16,
-    marginTop: 18,
-    marginBottom: 12
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 12,
   },
-
-
-  statsGrid: {
+  grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 10
+    justifyContent: 'space-between',
   },
-
-
-  statCard: {
-    width: '46%',
-    margin: '2%',
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 17,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    shadowOffset: {
-      width: 0,
-      height: 2
-    }
-  },
-
-
-  statValue: {
-    fontSize: 27,
-    fontWeight: '800',
-    color: '#111827',
-    marginTop: 8
-  },
-
-
-  statLabel: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginTop: 3
-  },
-
-
-  menuCard: {
-    marginHorizontal: 16,
-    marginBottom: 10,
-    backgroundColor: '#ffffff',
-    borderRadius: 15,
-    padding: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    shadowOffset: {
-      width: 0,
-      height: 1
-    }
-  },
-
-
-  menuIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 13,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 13
-  },
-
-
-  menuTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827'
-  },
-
-
-  menuText: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginTop: 3
-  },
-
-
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 15,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    shadowOffset: {
-      width: 0,
-      height: 1
-    }
-  },
-
-
-  cardIcon: {
-    width: 48,
-    height: 48,
+  tableCard: {
+    width: '48%',
+    backgroundColor: '#FFFFFF',
     borderRadius: 14,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 13
-  },
-
-
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4
-  },
-
-
-  cardText: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginTop: 2
-  },
-
-
-  studentCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 15,
-    marginBottom: 11,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    shadowOffset: {
-      width: 0,
-      height: 1
-    }
-  },
-
-
-  studentAvatar: {
-    width: 55,
-    height: 55,
-    borderRadius: 28,
-    backgroundColor: '#dbeafe',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 13
-  },
-
-
-  studentAvatarText: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#2563eb'
-  },
-
-
-  studentName: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 3
-  },
-
-
-  studentInfo: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 2
-  },
-
-
-  statusBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#dcfce7',
-    borderRadius: 20,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    marginTop: 7
-  },
-
-
-  statusBadgeInactive: {
-    backgroundColor: '#fee2e2'
-  },
-
-
-  statusText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#15803d'
-  },
-
-
-  statusTextInactive: {
-    color: '#dc2626'
-  },
-
-
-  statusButton: {
-    padding: 5,
-    marginLeft: 5
-  },
-
-
-  searchContainer: {
-    margin: 16,
-    marginBottom: 8,
-    backgroundColor: '#ffffff',
-    borderRadius: 13,
-    minHeight: 50,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
+    padding: 14,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb'
+    borderColor: '#E2E8F0',
   },
-
-
-  searchInput: {
-    flex: 1,
-    marginLeft: 9,
-    fontSize: 15,
-    color: '#111827'
-  },
-
-
-  listHeader: {
-    paddingHorizontal: 17,
-    paddingVertical: 8,
+  tableCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    marginBottom: 10,
   },
-
-
-  listHeaderText: {
-    fontSize: 13,
-    color: '#6b7280'
-  },
-
-
-  classCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 17,
-    padding: 17,
-    marginBottom: 12,
-    flexDirection: 'row',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    shadowOffset: {
-      width: 0,
-      height: 1
-    }
-  },
-
-
-  classIcon: {
-    width: 53,
-    height: 53,
-    borderRadius: 16,
-    backgroundColor: '#eff6ff',
+  tableIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14
   },
-
-
-  choiceButton: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 20,
-    paddingHorizontal: 13,
-    paddingVertical: 9,
-    marginRight: 8,
-    marginBottom: 4
+  countBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
   },
-
-
-  choiceButtonSelected: {
-    backgroundColor: '#2563eb'
+  countBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
   },
-
-
-  choiceButtonText: {
-    color: '#374151',
+  tableCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  tableCardSub: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  tableCardFooter: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  gerenciarLink: {
     fontSize: 12,
-    fontWeight: '600'
+    fontWeight: '700',
   },
-
-
-  choiceButtonTextSelected: {
-    color: '#ffffff'
+  tableContainer: {
+    flex: 1,
+    padding: 16,
   },
-
-
+  tableHeaderBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  activeTableTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  activeTableSub: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  btnAdd: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  btnAddEmpty: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 14,
+  },
+  btnAddText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 12,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#0F172A',
+  },
+  listScroll: {
+    paddingBottom: 24,
+  },
+  emptyBox: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 28,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 8,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#334155',
+    marginTop: 10,
+  },
+  emptyDesc: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  recordCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  recordHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 10,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  recordIdBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  recordIdText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1D4ED8',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  btnEdit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  btnEditText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+  btnDelete: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  btnDeleteText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+  fieldsList: {
+    gap: 6,
+  },
+  fieldRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  fieldValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0F172A',
+    flexShrink: 1,
+    textAlign: 'right',
+  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end'
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    padding: 18,
   },
-
-
-  modalContainer: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    padding: 20,
-    maxHeight: '90%'
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 18,
+    maxHeight: '85%',
   },
-
-
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 17,
     fontWeight: '800',
-    color: '#111827',
-    marginBottom: 20
+    color: '#0F172A',
   },
-
-
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF2F2',
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 10,
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  modalBody: {
+    marginVertical: 12,
+  },
+  inputGroup: {
+    marginBottom: 12,
+  },
   inputLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#374151',
-    marginBottom: 7,
-    marginTop: 8
+    color: '#334155',
+    marginBottom: 5,
   },
-
-
   input: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 11,
-    minHeight: 48,
-    paddingHorizontal: 13,
-    fontSize: 15,
-    color: '#111827',
-    marginBottom: 7
+    borderColor: '#CBD5E1',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#0F172A',
   },
-
-
-  modalButtons: {
+  modalFooter: {
     flexDirection: 'row',
-    marginTop: 18,
-    gap: 10
+    justifyContent: 'flex-end',
+    gap: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
   },
-
-
-  cancelButton: {
-    flex: 1,
-    minHeight: 48,
-    borderRadius: 11,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
-    justifyContent: 'center'
+  btnCancel: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
   },
-
-
-  cancelButtonText: {
-    color: '#374151',
-    fontSize: 15,
-    fontWeight: '700'
-  },
-
-
-  saveButton: {
-    flex: 1,
-    minHeight: 48,
-    borderRadius: 11,
-    backgroundColor: '#2563eb',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-
-
-  saveButtonText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '700'
-  },
-
-
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 45
-  },
-
-
-  emptyTitle: {
-    fontSize: 17,
+  btnCancelText: {
+    color: '#475569',
     fontWeight: '700',
-    color: '#374151',
-    marginTop: 12,
-    textAlign: 'center'
-  },
-
-
-  emptyText: {
     fontSize: 13,
-    color: '#6b7280',
-    marginTop: 6,
-    textAlign: 'center',
-    lineHeight: 19
   },
-
-
-  loadingSmall: {
-    position: 'absolute',
-    bottom: 15,
-    alignSelf: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 9,
+  btnSave: {
     flexDirection: 'row',
     alignItems: 'center',
-    elevation: 4
+    gap: 5,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
   },
-
-
-  loadingText: {
-    fontSize: 12,
-    color: '#374151',
-    marginLeft: 7
+  btnSaveText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
   },
-
-
-  gradeCircle: {
-    width: 55,
-    height: 55,
-    borderRadius: 28,
-    backgroundColor: '#eff6ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 10
-  },
-
-
-  gradeCircleText: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#2563eb'
-  },
-
-
-  reportHeader: {
-    margin: 16,
-    padding: 17,
-    borderRadius: 17,
-    backgroundColor: '#ffffff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 1
-  },
-
-
-  averageCard: {
-    marginHorizontal: 16,
-    marginBottom: 10,
-    backgroundColor: '#2563eb',
+  confirmCard: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 22,
-    alignItems: 'center'
-  },
-
-
-  averageLabel: {
-    color: '#dbeafe',
-    fontSize: 14,
-    fontWeight: '600'
-  },
-
-
-  averageValue: {
-    color: '#ffffff',
-    fontSize: 42,
-    fontWeight: '900',
-    marginVertical: 5
-  },
-
-
-  averageStatus: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '600'
-  },
-
-
-  aboutCard: {
-    margin: 16,
-    padding: 25,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
     alignItems: 'center',
-    elevation: 2
   },
-
-
-  aboutIcon: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#eff6ff',
+  confirmIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#FEF2F2',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 15
+    marginBottom: 12,
   },
-
-
-  aboutTitle: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#111827'
-  },
-
-
-  aboutVersion: {
-    color: '#6b7280',
-    fontSize: 13,
-    marginTop: 5,
-    marginBottom: 15
-  },
-
-
-  aboutText: {
-    color: '#6b7280',
-    fontSize: 14,
-    lineHeight: 22,
-    textAlign: 'center'
-  },
-
-
-  aboutInfoCard: {
-    marginHorizontal: 16,
-    marginBottom: 15,
-    padding: 19,
-    borderRadius: 17,
-    backgroundColor: '#ffffff',
-    elevation: 1
-  },
-
-
-  aboutInfoTitle: {
+  confirmTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#111827',
-    marginBottom: 14
+    color: '#0F172A',
+    marginBottom: 6,
   },
-
-
-  aboutRow: {
+  confirmDesc: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 18,
+  },
+  confirmActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 9
+    gap: 12,
   },
-
-
-  aboutRowText: {
-    marginLeft: 12,
-    fontSize: 14,
-    color: '#374151',
-    flex: 1
-  }
-
+  btnConfirmDelete: {
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
 });
-
-
-export default function App() {
-
-  return (
-
-    <ScholarProvider>
-
-      <AppNavigator />
-
-    </ScholarProvider>
-
-  );
-
-}
